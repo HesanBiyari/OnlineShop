@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}
+ثبت‌نام | Giftweb
+{% endblock %}
+
+{% block content %}
+
+<section class="auth-page">
+
+    <div class="auth-card">
+
+        <h1>
+            ساخت حساب
+        </h1>
+
+        <form method="post">
+
+            {% csrf_token %}
+
+            {{ form.as_p }}
+
+            <button
+                type="submit"
+                class="product-button"
+            >
+                ثبت‌نام
+            </button>
+
+        </form>
+
+        <p>
+            قبلاً حساب دارید؟
+            <a href="{% url 'login' %}">
+                وارد شوید
+            </a>
+        </p>
+
+    </div>
+
+</section>
+
+{% endblock %}

@@ -1,9 +1,109 @@
 from django.urls import path
 
-from .views import home, shop
-
+from .views import (
+    account,
+    add_to_cart,
+    cart_view,
+    checkout,
+    clear_cart,
+    home,
+    login_view,
+    logout_view,
+    order_detail,
+    orders,
+    payment,
+    payment_success,
+    product_detail,
+    remove_from_cart,
+    shop,
+    signup_view,
+    update_cart,
+)
 
 urlpatterns = [
-    path("", home, name="home"),
-    path("shop/", shop, name="shop"),
+    path(
+        "",
+        home,
+        name="home",
+    ),
+    path(
+        "shop/",
+        shop,
+        name="shop",
+    ),
+    path(
+        "product/<int:pk>/",
+        product_detail,
+        name="product_detail",
+    ),
+    path(
+        "signup/",
+        signup_view,
+        name="signup",
+    ),
+    path(
+        "login/",
+        login_view,
+        name="login",
+    ),
+    path(
+        "logout/",
+        logout_view,
+        name="logout",
+    ),
+    path(
+        "account/",
+        account,
+        name="account",
+    ),
+    path(
+        "cart/",
+        cart_view,
+        name="cart",
+    ),
+    path(
+        "cart/add/<int:pk>/",
+        add_to_cart,
+        name="add_to_cart",
+    ),
+    path(
+        "cart/update/",
+        update_cart,
+        name="update_cart",
+    ),
+    path(
+        "cart/remove/<str:key>/",
+        remove_from_cart,
+        name="remove_from_cart",
+    ),
+    path(
+        "cart/clear/",
+        clear_cart,
+        name="clear_cart",
+    ),
+    path(
+        "checkout/",
+        checkout,
+        name="checkout",
+    ),
+    path(
+        "payment/<int:order_id>/",
+        payment,
+        name="payment",
+    ),
+    path(
+        "payment/<int:order_id>/success/",
+        payment_success,
+        name="payment_success",
+    ),
+    path(
+        "orders/",
+        orders,
+        name="orders",
+    ),
+    path(
+        "orders/<int:order_id>/",
+        order_detail,
+        name="order_detail",
+    ),
 ]

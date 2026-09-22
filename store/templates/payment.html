@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}
+پرداخت | Giftweb
+{% endblock %}
+
+{% block content %}
+
+<section class="payment-page">
+
+    <div class="auth-card">
+
+        <h1>
+            پرداخت سفارش #{{ order.id }}
+        </h1>
+
+        <p>
+            مبلغ سفارش:
+            <strong>
+                {{ order.total_amount|floatformat:0 }}
+                تومان
+            </strong>
+        </p>
+
+        <p class="payment-demo-note">
+            این صفحه فعلاً درگاه آزمایشی پروژه است.
+        </p>
+
+        <form
+            method="post"
+            action="{% url 'payment_success' order.id %}"
+        >
+
+            {% csrf_token %}
+
+            <button
+                type="submit"
+                class="product-button"
+            >
+                پرداخت آزمایشی
+            </button>
+
+        </form>
+
+    </div>
+
+</section>
+
+{% endblock %}

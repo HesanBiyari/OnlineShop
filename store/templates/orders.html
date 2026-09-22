@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}
+سفارش‌های من | Giftweb
+{% endblock %}
+
+{% block content %}
+
+<section class="account-page">
+
+    <div class="container">
+
+        <h1>
+            سفارش‌های من
+        </h1>
+
+        {% if orders %}
+
+            <div class="orders-list">
+
+                {% for order in orders %}
+
+                    <a
+                        href="{% url 'order_detail' order.id %}"
+                        class="order-card"
+                    >
+
+                        <strong>
+                            سفارش #{{ order.id }}
+                        </strong>
+
+                        <span>
+                            {{ order.total_amount|floatformat:0 }}
+                            تومان
+                        </span>
+
+                        <span>
+                            {{ order.get_status_display }}
+                        </span>
+
+                    </a>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="no-products">
+                هنوز سفارشی ثبت نشده است.
+            </div>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
+{% endblock %}
