@@ -1,389 +1,158 @@
 {% extends "base.html" %}
 
-{% block title %}
-فروشگاه | Giftweb
-{% endblock %}
+{% block title %}فروشگاه | Giftweb{% endblock %}
 
 {% block content %}
-
 <section class="shop-page">
-
     <div class="container">
-
-        <!-- Shop Header -->
-
         <div class="shop-header">
-
             <div>
-                <span class="section-label">
-                    فروشگاه
-                </span>
-
-                <h1>
-                    محصولات دیجیتال
-                </h1>
-
+                <span class="section-label">فروشگاه</span>
+                <h1>محصولات دیجیتال</h1>
                 {% if search_query %}
-
-                    <p>
-                        نتایج جستجو برای:
-                        <strong>{{ search_query }}</strong>
-                    </p>
-
+                    <p>نتایج جستجو برای: <strong>{{ search_query }}</strong></p>
                 {% else %}
-
-                    <p>
-                        محصولات مورد نیازت را پیدا کن.
-                    </p>
-
+                    <p>محصولات مورد نیازت را پیدا کن.</p>
                 {% endif %}
-
             </div>
-
         </div>
-
-
-        <!-- Filters -->
 
         <div class="shop-toolbar">
-
             <form method="get" class="shop-search">
-
                 {% if selected_category %}
-                    <input
-                        type="hidden"
-                        name="category"
-                        value="{{ selected_category }}"
-                    >
+                    <input type="hidden" name="category" value="{{ selected_category }}">
                 {% endif %}
-
-                <input
-                    type="text"
-                    name="q"
-                    value="{{ search_query }}"
-                    placeholder="جستجوی محصول..."
-                >
-
-                <button type="submit">
-                    جستجو
-                </button>
-
+                {% if selected_sort != "newest" %}
+                    <input type="hidden" name="sort" value="{{ selected_sort }}">
+                {% endif %}
+                <input type="text" name="q" value="{{ search_query }}" placeholder="جستجوی محصول...">
+                <button type="submit">جستجو</button>
             </form>
-
 
             <form method="get" class="sort-form">
-
                 {% if search_query %}
-                    <input
-                        type="hidden"
-                        name="q"
-                        value="{{ search_query }}"
-                    >
+                    <input type="hidden" name="q" value="{{ search_query }}">
                 {% endif %}
-
                 {% if selected_category %}
-                    <input
-                        type="hidden"
-                        name="category"
-                        value="{{ selected_category }}"
-                    >
+                    <input type="hidden" name="category" value="{{ selected_category }}">
                 {% endif %}
-
-                <label for="sort">
-                    مرتب‌سازی:
-                </label>
-
-                <select
-                    name="sort"
-                    id="sort"
-                    onchange="this.form.submit()"
-                >
-
-                    <option
-                        value="newest"
-                        {% if selected_sort == "newest" %}selected{% endif %}
-                    >
-                        جدیدترین
-                    </option>
-
-                    <option
-                        value="price_low"
-                        {% if selected_sort == "price_low" %}selected{% endif %}
-                    >
-                        ارزان‌ترین
-                    </option>
-
-                    <option
-                        value="price_high"
-                        {% if selected_sort == "price_high" %}selected{% endif %}
-                    >
-                        گران‌ترین
-                    </option>
-
-                    <option
-                        value="name"
-                        {% if selected_sort == "name" %}selected{% endif %}
-                    >
-                        نام محصول
-                    </option>
-
+                <select name="sort" onchange="this.form.submit()">
+                    <option value="newest" {% if selected_sort == "newest" %}selected{% endif %}>جدیدترین</option>
+                    <option value="price_low" {% if selected_sort == "price_low" %}selected{% endif %}>ارزان‌ترین</option>
+                    <option value="price_high" {% if selected_sort == "price_high" %}selected{% endif %}>گران‌ترین</option>
+                    <option value="name" {% if selected_sort == "name" %}selected{% endif %}>نام</option>
                 </select>
-
             </form>
-
         </div>
 
-
-        <!-- Shop Content -->
-
         <div class="shop-layout">
-
-
-            <!-- Categories -->
-
             <aside class="shop-sidebar">
-
                 <div class="filter-box">
-
-                    <h3>
-                        دسته‌بندی‌ها
-                    </h3>
-
-                    <a
-                        href="{% url 'shop' %}"
-                        class="{% if not selected_category %}active{% endif %}"
-                    >
-                        همه محصولات
-                    </a>
-
-
-                    {% for category in categories %}
-
-                        <a
-                            href="?category={{ category.slug }}"
-                            class="{% if selected_category == category.slug %}active{% endif %}"
-                        >
-                            {{ category.name }}
+                    <h3>دسته‌بندی‌ها</h3>
+                    <div class="category-filters">
+                        <a href="{% url 'shop' %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}{% if selected_sort != 'newest' %}{% if search_query %}&{% else %}?{% endif %}sort={{ selected_sort }}{% endif %}"
+                           class="{% if not selected_category %}active{% endif %}">
+                            همه محصولات
                         </a>
-
-                    {% empty %}
-
-                        <p>
-                            دسته‌بندی‌ای وجود ندارد.
-                        </p>
-
-                    {% endfor %}
-
+                        {% for category in categories %}
+                            <a href="{% url 'shop' %}?category={{ category.slug }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_sort != 'newest' %}&sort={{ selected_sort }}{% endif %}"
+                               class="{% if selected_category == category.slug %}active{% endif %}">
+                                {{ category.name }}
+                            </a>
+                        {% empty %}
+                            <p>دسته‌بندی‌ای وجود ندارد.</p>
+                        {% endfor %}
+                    </div>
                 </div>
-
             </aside>
 
-
-            <!-- Products -->
-
             <div class="shop-products">
-
                 <div class="shop-results">
-
-                    <span>
-                        {{ page_obj.paginator.count }}
-                        محصول
-                    </span>
-
+                    <span>{{ page_obj.paginator.count }} محصول</span>
                 </div>
 
-
                 <div class="products-grid shop-products-grid">
-
-                    {% for product in products %}
-
+                    {% for product in page_obj %}
                         <article class="product-card">
-
                             <div class="product-image">
-
-                                {% if product.discount and product.discount.is_active %}
-
+                                {% if product.discount and product.discount.is_active_now %}
                                     <span class="product-badge">
                                         {{ product.discount.percent }}٪ تخفیف
                                     </span>
-
                                 {% endif %}
-
 
                                 {% with image=product.shop_images|first %}
-
                                     {% if image %}
-
-                                        <img
-                                            src="{{ image.image.url }}"
-                                            alt="{{ image.alt_text|default:product.name }}"
-                                        >
-
+                                        <img src="{{ image.image.url }}"
+                                             alt="{{ image.alt_text|default:product.name }}">
                                     {% else %}
-
-                                        <div class="product-placeholder">
-                                            🎁
-                                        </div>
-
+                                        <div class="product-placeholder">🎁</div>
                                     {% endif %}
-
                                 {% endwith %}
-
                             </div>
-
 
                             <div class="product-info">
-
                                 {% if product.category %}
-
-                                    <span class="product-category">
-                                        {{ product.category.name }}
-                                    </span>
-
+                                    <span class="product-category">{{ product.category.name }}</span>
                                 {% endif %}
 
-
-                                <h3>
-                                    {{ product.name }}
-                                </h3>
-
+                                <h3>{{ product.name }}</h3>
 
                                 <div class="product-price">
-
-                                    {% if product.discount and product.discount.is_active %}
-
+                                    {% if product.catalog_old_price %}
                                         <span class="old-price">
-                                            {{ product.price|floatformat:0 }}
-                                            تومان
+                                            {{ product.catalog_old_price|floatformat:0 }} تومان
                                         </span>
-
-                                        <strong>
-                                            {{ product.final_price|floatformat:0 }}
-                                            تومان
-                                        </strong>
-
-                                    {% else %}
-
-                                        <strong>
-                                            {{ product.price|floatformat:0 }}
-                                            تومان
-                                        </strong>
-
                                     {% endif %}
-
+                                    <strong>
+                                        {% if product.catalog_variants %}از {% endif %}
+                                        {{ product.catalog_price|floatformat:0 }} تومان
+                                    </strong>
                                 </div>
 
-
-                                {% if product.stock > 0 %}
-
-                                    <span class="stock-status available">
-                                        موجود
-                                    </span>
-
+                                {% if product.catalog_has_stock %}
+                                    <span class="stock-status available">موجود</span>
                                 {% else %}
-
-                                    <span class="stock-status unavailable">
-                                        ناموجود
-                                    </span>
-
+                                    <span class="stock-status unavailable">ناموجود</span>
                                 {% endif %}
 
-
-                                <a
-                                    href="#"
-                                    class="product-button"
-                                >
+                                <a href="{% url 'product_detail' product.id %}" class="product-button">
                                     مشاهده محصول
                                 </a>
-
                             </div>
-
                         </article>
-
                     {% empty %}
-
                         <div class="no-products">
-
-                            <h3>
-                                محصولی پیدا نشد
-                            </h3>
-
-                            <p>
-                                عبارت جستجو یا فیلتر انتخابی را تغییر بده.
-                            </p>
-
-                            <a
-                                href="{% url 'shop' %}"
-                                class="btn btn-primary"
-                            >
-                                مشاهده همه محصولات
-                            </a>
-
+                            {% if search_query %}
+                                محصولی برای «{{ search_query }}» پیدا نشد.
+                            {% else %}
+                                محصولی برای نمایش وجود ندارد.
+                            {% endif %}
                         </div>
-
                     {% endfor %}
-
                 </div>
 
-
-                <!-- Pagination -->
-
                 {% if page_obj.paginator.num_pages > 1 %}
-
                     <div class="pagination">
-
                         {% if page_obj.has_previous %}
-
-                            <a
-                                href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}&sort={{ selected_sort }}"
-                            >
-                                قبلی
-                            </a>
-
+                            <a href="?{% if search_query %}q={{ search_query|urlencode }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}sort={{ selected_sort }}&page={{ page_obj.previous_page_number }}">قبلی</a>
                         {% endif %}
-
 
                         {% for num in page_obj.paginator.page_range %}
-
                             {% if page_obj.number == num %}
-
-                                <span class="current">
-                                    {{ num }}
-                                </span>
-
+                                <span class="active">{{ num }}</span>
                             {% else %}
-
-                                <a
-                                    href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}&sort={{ selected_sort }}"
-                                >
-                                    {{ num }}
-                                </a>
-
+                                <a href="?{% if search_query %}q={{ search_query|urlencode }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}sort={{ selected_sort }}&page={{ num }}">{{ num }}</a>
                             {% endif %}
-
                         {% endfor %}
 
-
                         {% if page_obj.has_next %}
-
-                            <a
-                                href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}&sort={{ selected_sort }}"
-                            >
-                                بعدی
-                            </a>
-
+                            <a href="?{% if search_query %}q={{ search_query|urlencode }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}sort={{ selected_sort }}&page={{ page_obj.next_page_number }}">بعدی</a>
                         {% endif %}
-
                     </div>
-
                 {% endif %}
-
             </div>
-
         </div>
-
     </div>
-
 </section>
-
 {% endblock %}

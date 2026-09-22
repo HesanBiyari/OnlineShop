@@ -14,6 +14,7 @@
             سفارش #{{ order.id }}
         </h1>
 
+
         <div class="order-detail-box">
 
             <p>
@@ -29,6 +30,12 @@
                 تومان
             </p>
 
+            <p>
+                تاریخ ثبت:
+                {{ order.created_at|date:"Y/m/d H:i" }}
+            </p>
+
+
             {% if order.payment_ref %}
 
                 <p>
@@ -43,7 +50,7 @@
 
         <div class="orders-list">
 
-            {% for item in order.items %}
+            {% for item in order.items.all %}
 
                 <div class="order-item">
 
@@ -53,15 +60,26 @@
                             {{ item.product_name }}
                         </strong>
 
+
                         {% if item.variant_name %}
+
                             <p>
                                 {{ item.variant_name }}
                             </p>
+
                         {% endif %}
+
 
                         <p>
                             تعداد:
                             {{ item.quantity }}
+                        </p>
+
+
+                        <p>
+                            قیمت واحد:
+                            {{ item.unit_price|floatformat:0 }}
+                            تومان
                         </p>
 
                     </div>
@@ -75,45 +93,58 @@
                 </div>
 
 
-                {% if item.digital_codes.all %}
+                {% with codes=item.digital_codes.all %}
 
-                    <div class="digital-delivery">
+                    {% if codes %}
 
-                        <h3>
-                            اطلاعات محصول دیجیتال
-                        </h3>
+                        <div class="digital-delivery">
 
-                        {% for code in item.digital_codes.all %}
+                            <h3>
+                                اطلاعات محصول دیجیتال
+                            </h3>
 
-                            <div class="digital-code">
 
-                                <span>
-                                    کد:
-                                </span>
+                            {% for code in codes %}
 
-                                <strong>
-                                    {{ code.code }}
-                                </strong>
-
-                                {% if code.pin %}
+                                <div class="digital-code">
 
                                     <span>
-                                        PIN:
+                                        کد:
                                     </span>
 
                                     <strong>
-                                        {{ code.pin }}
+                                        {{ code.code }}
                                     </strong>
 
-                                {% endif %}
 
-                            </div>
+                                    {% if code.pin %}
 
-                        {% endfor %}
+                                        <span>
+                                            PIN:
+                                        </span>
 
-                    </div>
+                                        <strong>
+                                            {{ code.pin }}
+                                        </strong>
 
-                {% endif %}
+                                    {% endif %}
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    {% endif %}
+
+                {% endwith %}
+
+
+            {% empty %}
+
+                <div class="no-products">
+                    این سفارش آیتمی ندارد.
+                </div>
 
             {% endfor %}
 

@@ -1,22 +1,34 @@
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import DigitalCode
 
 
 def get_item_price(product, variant=None):
-    return variant.final_price if variant else product.final_price
+    if variant:
+        return variant.final_price
+
+    return product.final_price
 
 
 def get_item_stock(product, variant=None):
-    return variant.stock if variant else product.stock
+    if variant:
+        return variant.stock
+
+    return product.stock
 
 
 def deliver_digital_codes(order):
     all_delivered = True
 
-    for item in order.items.select_related("product", "variant"):
+    for item in order.items.select_related(
+        "product",
+        "variant",
+    ):
         existing_codes = item.digital_codes.count()
+
         needed = item.quantity - existing_codes
+
         if needed <= 0:
             continue
 

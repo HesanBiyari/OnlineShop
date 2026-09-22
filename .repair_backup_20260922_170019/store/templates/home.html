@@ -11,7 +11,6 @@ Giftweb | فروشگاه محصولات دیجیتال
 ========================= -->
 
 <section class="hero">
-
     <div class="container hero-content">
 
         <div class="hero-text">
@@ -32,17 +31,11 @@ Giftweb | فروشگاه محصولات دیجیتال
 
             <div class="hero-buttons">
 
-                <a
-                    href="{% url 'shop' %}"
-                    class="btn btn-primary"
-                >
+                <a href="#" class="btn btn-primary">
                     مشاهده فروشگاه
                 </a>
 
-                <a
-                    href="{% url 'shop' %}"
-                    class="btn btn-secondary"
-                >
+                <a href="#" class="btn btn-secondary">
                     دسته‌بندی‌ها
                 </a>
 
@@ -68,8 +61,8 @@ Giftweb | فروشگاه محصولات دیجیتال
         </div>
 
     </div>
-
 </section>
+
 
 
 <!-- =========================
@@ -94,10 +87,7 @@ Giftweb | فروشگاه محصولات دیجیتال
 
             </div>
 
-            <a
-                href="{% url 'shop' %}"
-                class="view-all"
-            >
+            <a href="#" class="view-all">
                 مشاهده همه
             </a>
 
@@ -108,31 +98,22 @@ Giftweb | فروشگاه محصولات دیجیتال
 
             {% for category in categories %}
 
-                <a
-                    href="{% url 'shop' %}?category={{ category.slug }}"
-                    class="category-card"
-                >
+                <a href="#" class="category-card">
 
                     <div class="category-icon">
 
                         {% if "Steam" in category.name %}
                             🎮
-
                         {% elif "PlayStation" in category.name %}
                             🎯
-
                         {% elif "Xbox" in category.name %}
                             🕹️
-
                         {% elif "Apple" in category.name %}
                             🍎
-
                         {% elif "Google" in category.name %}
                             ▶️
-
                         {% else %}
                             🎁
-
                         {% endif %}
 
                     </div>
@@ -162,6 +143,7 @@ Giftweb | فروشگاه محصولات دیجیتال
 </section>
 
 
+
 <!-- =========================
      FEATURED PRODUCTS
 ========================= -->
@@ -184,10 +166,7 @@ Giftweb | فروشگاه محصولات دیجیتال
 
             </div>
 
-            <a
-                href="{% url 'shop' %}"
-                class="view-all"
-            >
+            <a href="#" class="view-all">
                 مشاهده همه
             </a>
 
@@ -202,12 +181,12 @@ Giftweb | فروشگاه محصولات دیجیتال
 
                     <div class="product-image">
 
-                        {% if product.discount and product.discount.is_active_now %}
-
-                            <span class="product-badge">
-                                {{ product.discount.percent }}٪ تخفیف
-                            </span>
-
+                        {% if product.discount %}
+                            {% if product.discount.is_active %}
+                                <span class="product-badge">
+                                    {{ product.discount.percent }}٪ تخفیف
+                                </span>
+                            {% endif %}
                         {% endif %}
 
 
@@ -251,30 +230,32 @@ Giftweb | فروشگاه محصولات دیجیتال
 
                         <div class="product-price">
 
-                            {% if product.catalog_old_price %}
+                        
+
+                            {% if product.discount and product.discount.is_active %}
 
                                 <span class="old-price">
-                                    {{ product.catalog_old_price|floatformat:0 }}
+                                    {{ product.price|floatformat:0 }}
                                     تومان
                                 </span>
 
+                                <strong>
+                                    {{ product.final_price|floatformat:0 }}
+                                    تومان
+                                </strong>
+
+                            {% else %}
+
+                                <strong>
+                                    {{ product.price|floatformat:0 }}
+                                    تومان
+                                </strong>
+
                             {% endif %}
-
-                            <strong>
-
-                                {% if product.catalog_variants %}
-                                    از
-                                {% endif %}
-
-                                {{ product.catalog_price|floatformat:0 }}
-                                تومان
-
-                            </strong>
 
                         </div>
 
-
-                        {% if product.catalog_has_stock %}
+                        {% if product.stock > 0 %}
 
                             <span class="stock-status available">
                                 موجود
@@ -289,10 +270,8 @@ Giftweb | فروشگاه محصولات دیجیتال
                         {% endif %}
 
 
-                        <a
-                            href="{% url 'product_detail' product.id %}"
-                            class="product-button"
-                        >
+
+                        <a href="#" class="product-button">
                             مشاهده محصول
                         </a>
 
@@ -313,6 +292,7 @@ Giftweb | فروشگاه محصولات دیجیتال
     </div>
 
 </section>
+
 
 
 <!-- =========================
@@ -337,10 +317,7 @@ Giftweb | فروشگاه محصولات دیجیتال
 
             </div>
 
-            <a
-                href="{% url 'shop' %}"
-                class="view-all"
-            >
+            <a href="#" class="view-all">
                 مشاهده همه
             </a>
 
@@ -354,15 +331,6 @@ Giftweb | فروشگاه محصولات دیجیتال
                 <article class="product-card">
 
                     <div class="product-image">
-
-                        {% if product.discount and product.discount.is_active_now %}
-
-                            <span class="product-badge">
-                                {{ product.discount.percent }}٪ تخفیف
-                            </span>
-
-                        {% endif %}
-
 
                         {% with image=product.homepage_images|first %}
 
@@ -404,48 +372,15 @@ Giftweb | فروشگاه محصولات دیجیتال
 
                         <div class="product-price">
 
-                            {% if product.catalog_old_price %}
-
-                                <span class="old-price">
-                                    {{ product.catalog_old_price|floatformat:0 }}
-                                    تومان
-                                </span>
-
-                            {% endif %}
-
                             <strong>
-
-                                {% if product.catalog_variants %}
-                                    از
-                                {% endif %}
-
-                                {{ product.catalog_price|floatformat:0 }}
+                                {{ product.price|floatformat:0 }}
                                 تومان
-
                             </strong>
 
                         </div>
 
 
-                        {% if product.catalog_has_stock %}
-
-                            <span class="stock-status available">
-                                موجود
-                            </span>
-
-                        {% else %}
-
-                            <span class="stock-status unavailable">
-                                ناموجود
-                            </span>
-
-                        {% endif %}
-
-
-                        <a
-                            href="{% url 'product_detail' product.id %}"
-                            class="product-button"
-                        >
+                        <a href="#" class="product-button">
                             مشاهده محصول
                         </a>
 
@@ -466,6 +401,7 @@ Giftweb | فروشگاه محصولات دیجیتال
     </div>
 
 </section>
+
 
 
 <!-- =========================
@@ -570,6 +506,7 @@ Giftweb | فروشگاه محصولات دیجیتال
 </section>
 
 
+
 <!-- =========================
      HOW TO BUY
 ========================= -->
@@ -669,6 +606,7 @@ Giftweb | فروشگاه محصولات دیجیتال
     </div>
 
 </section>
+
 
 
 <!-- =========================

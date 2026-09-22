@@ -16,15 +16,13 @@ from django.db.models import (
     Prefetch,
     Q,
 )
-from django.db.models import Min, Prefetch, Q
-from django.db.models.functions import Coalesce
+from django.db.models import Q, Prefetch
 from django.shortcuts import (
     get_object_or_404,
     redirect,
     render,
 )
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 
 from .forms import CheckoutForm, SignUpForm
 from .models import (
@@ -46,26 +44,41 @@ from .utils import (
 def home(request):
     product_images = Prefetch(
         "images",
-        queryset=ProductImage.objects.order_by("-is_main", "id"),
+        queryset=ProductImage.objects.order_by(
+            "-is_main",
+            "id",
+        ),
         to_attr="homepage_images",
     )
+
     catalog_variants = Prefetch(
         "variants",
-        queryset=ProductVariant.objects.filter(is_active=True).order_by("price"),
+        queryset=ProductVariant.objects.filter(
+            is_active=True,
+        ).order_by("price"),
         to_attr="catalog_variants_cache",
     )
 
     products = (
         Product.objects
-        .select_related("category", "discount")
-        .prefetch_related(product_images, catalog_variants)
+        .select_related(
+            "category",
+            "discount",
+        )
+        .prefetch_related(
+            product_images,
+            catalog_variants,
+        )
         .order_by("-created_at")
     )
 
     now = timezone.now()
+
     featured_products = list(
         products
-        .filter(discount__is_active=True)
+        .filter(
+            discount__is_active=True,
+        )
         .filter(
             Q(discount__starts_at__isnull=True)
             | Q(discount__starts_at__lte=now)
@@ -77,23 +90,38 @@ def home(request):
         .order_by("-created_at")[:4]
     )
 
-    featured_ids = {product.id for product in featured_products}
+    featured_ids = {
+        product.id
+        for product in featured_products
+    }
 
     if len(featured_products) < 4:
         extra_products = list(
             products
             .exclude(id__in=featured_ids)
-            .order_by("-created_at")[:4 - len(featured_products)]
+            .order_by("-created_at")[
+                :4 - len(featured_products)
+            ]
         )
+
         featured_products.extend(extra_products)
+
+    new_products = list(
+        products[:4]
+    )
+
+    categories = (
+        Category.objects
+        .order_by("name")[:5]
+    )
 
     return render(
         request,
         "home.html",
         {
-            "categories": Category.objects.order_by("name")[:5],
+            "categories": categories,
             "featured_products": featured_products,
-            "new_products": list(products[:4]),
+            "new_products": new_products,
         },
     )
 
@@ -101,39 +129,47 @@ def home(request):
 def shop(request):
     product_images = Prefetch(
         "images",
-        queryset=ProductImage.objects.order_by("-is_main", "id"),
+        queryset=ProductImage.objects.order_by(
+            "-is_main",
+            "id",
+        ),
         to_attr="shop_images",
     )
+
     catalog_variants = Prefetch(
         "variants",
-        queryset=ProductVariant.objects.filter(is_active=True).order_by("price"),
+        queryset=ProductVariant.objects.filter(
+            is_active=True,
+        ).order_by("price"),
         to_attr="catalog_variants_cache",
     )
 
     products = (
         Product.objects
-        .select_related("category", "discount")
-        .prefetch_related(product_images, catalog_variants)
-        .annotate(
-            min_variant_price=Min(
-                "variants__price",
-                filter=Q(variants__is_active=True),
-            )
+        .select_related(
+            "category",
+            "discount",
         )
-        .annotate(
-            catalog_sort_price=Coalesce(
-                "min_variant_price",
-                "price",
-            )
+        .prefetch_related(
+            product_images,
+            catalog_variants,
         )
     )
 
-    query = request.GET.get("q", "").strip()
-    category_slug = request.GET.get("category", "").strip()
-    sort = request.GET.get("sort", "newest")
+    query = request.GET.get(
+        "q",
+        "",
+    ).strip()
 
-    if sort not in {"newest", "price_low", "price_high", "name"}:
-        sort = "newest"
+    category_slug = request.GET.get(
+        "category",
+        "",
+    ).strip()
+
+    sort = request.GET.get(
+        "sort",
+        "newest",
+    )
 
     if query:
         products = products.filter(
@@ -142,19 +178,61 @@ def shop(request):
         )
 
     if category_slug:
-        products = products.filter(category__slug=category_slug)
+        products = products.filter(
+            category__slug=category_slug
+        )
+
+    products = products.annotate(
+        catalog_sort_price=(
+            Min(
+                "variants__price",
+                filter=Q(
+                    variants__is_active=True
+                ),
+            )
+        )
+    ).annotate(
+        catalog_sort_price_fallback=(
+            Coalesce(
+                F("catalog_sort_price"),
+                F("price"),
+            )
+        )
+    )
 
     if sort == "price_low":
-        products = products.order_by("catalog_sort_price", "-created_at")
-    elif sort == "price_high":
-        products = products.order_by("-catalog_sort_price", "-created_at")
-    elif sort == "name":
-        products = products.order_by("name", "-created_at")
-    else:
-        products = products.order_by("-created_at")
+        products = products.order_by(
+            "catalog_sort_price_fallback"
+        )
 
-    page_obj = Paginator(products, 12).get_page(
-        request.GET.get("page")
+    elif sort == "price_high":
+        products = products.order_by(
+            "-catalog_sort_price_fallback"
+        )
+
+    elif sort == "name":
+        products = products.order_by(
+            "name"
+        )
+
+    else:
+        products = products.order_by(
+            "-created_at"
+        )
+
+    paginator = Paginator(
+        products,
+        12,
+    )
+
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(
+        page_number
+    )
+
+    categories = (
+        Category.objects
+        .order_by("name")
     )
 
     return render(
@@ -162,7 +240,7 @@ def shop(request):
         "shop.html",
         {
             "page_obj": page_obj,
-            "categories": Category.objects.order_by("name"),
+            "categories": categories,
             "search_query": query,
             "selected_category": category_slug,
             "selected_sort": sort,
@@ -173,45 +251,45 @@ def shop(request):
 def product_detail(request, pk):
     product_images = Prefetch(
         "images",
-        queryset=ProductImage.objects.order_by("-is_main", "id"),
+        queryset=ProductImage.objects.order_by(
+            "-is_main",
+            "id",
+        ),
         to_attr="detail_images",
     )
+
     variants = Prefetch(
         "variants",
-        queryset=ProductVariant.objects.filter(is_active=True).order_by("price"),
+        queryset=ProductVariant.objects.filter(
+            is_active=True,
+        ).order_by("price"),
         to_attr="active_variants",
     )
 
     product = get_object_or_404(
         Product.objects
-        .select_related("category", "discount")
-        .prefetch_related(product_images, variants),
+        .select_related(
+            "category",
+            "discount",
+        )
+        .prefetch_related(
+            product_images,
+            variants,
+        ),
         pk=pk,
     )
 
     related_products = (
         Product.objects
-        .filter(category=product.category)
+        .filter(
+            category=product.category,
+        )
         .exclude(pk=product.pk)
-        .select_related("category", "discount")
-        .prefetch_related(
-            Prefetch(
-                "images",
-                queryset=ProductImage.objects.order_by("-is_main", "id"),
-                to_attr="related_images",
-            ),
-            Prefetch(
-                "variants",
-                queryset=ProductVariant.objects.filter(is_active=True).order_by("price"),
-                to_attr="catalog_variants_cache",
-            ),
+        .select_related(
+            "category",
+            "discount",
         )
         .order_by("-created_at")[:4]
-    )
-
-    has_available_variants = any(
-        variant.stock > 0
-        for variant in product.active_variants
     )
 
     return render(
@@ -220,7 +298,6 @@ def product_detail(request, pk):
         {
             "product": product,
             "variants": product.active_variants,
-            "has_available_variants": has_available_variants,
             "related_products": related_products,
         },
     )
@@ -262,21 +339,26 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect("account")
 
-    next_url = request.POST.get("next") or request.GET.get("next")
-
     if request.method == "POST":
-        form = AuthenticationForm(request, data=request.POST)
+        form = AuthenticationForm(
+            request,
+            data=request.POST,
+        )
+
         if form.is_valid():
-            login(request, form.get_user())
+            user = form.get_user()
 
-            if next_url and url_has_allowed_host_and_scheme(
-                next_url,
-                allowed_hosts={request.get_host()},
-                require_https=request.is_secure(),
-            ):
-                return redirect(next_url)
+            login(
+                request,
+                user,
+            )
 
-            return redirect("account")
+            return redirect(
+                request.GET.get(
+                    "next",
+                    "account",
+                )
+            )
     else:
         form = AuthenticationForm()
 
@@ -285,7 +367,6 @@ def login_view(request):
         "login.html",
         {
             "form": form,
-            "next": next_url or "",
         },
     )
 
@@ -317,27 +398,34 @@ def account(request):
 
 def get_cart_items(request):
     cart = request.session.get("cart", {})
+
     items = []
     total = 0
-    invalid_keys = set()
 
-    for key, raw_quantity in cart.items():
+    for key, quantity in cart.items():
         try:
             product_id, variant_id = key.split(":", 1)
-            quantity = int(raw_quantity)
+            quantity = int(quantity)
+
             if quantity <= 0:
-                raise ValueError
+                continue
+
         except (ValueError, TypeError):
-            invalid_keys.add(key)
             continue
 
         product = (
             Product.objects
-            .select_related("category", "discount")
+            .select_related(
+                "category",
+                "discount",
+            )
             .prefetch_related(
                 Prefetch(
                     "images",
-                    queryset=ProductImage.objects.order_by("-is_main", "id"),
+                    queryset=ProductImage.objects.order_by(
+                        "-is_main",
+                        "id",
+                    ),
                     to_attr="cart_images",
                 )
             )
@@ -346,47 +434,49 @@ def get_cart_items(request):
         )
 
         if not product:
-            invalid_keys.add(key)
             continue
 
         variant = None
+
         if variant_id != "0":
             variant = product.variants.filter(
                 pk=variant_id,
                 is_active=True,
             ).first()
+
             if not variant:
-                invalid_keys.add(key)
                 continue
 
-        stock = get_item_stock(product, variant)
-        if stock <= 0:
-            invalid_keys.add(key)
-            continue
+        unit_price = get_item_price(
+            product,
+            variant,
+        )
 
-        quantity = min(quantity, stock)
-        unit_price = get_item_price(product, variant)
         item_total = unit_price * quantity
 
-        items.append({
-            "key": key,
-            "product": product,
-            "variant": variant,
-            "quantity": quantity,
-            "unit_price": unit_price,
-            "total": item_total,
-            "image": product.cart_images[0] if product.cart_images else None,
-            "stock": stock,
-        })
-        total += item_total
+        image = (
+            product.cart_images[0]
+            if product.cart_images
+            else None
+        )
 
-    if invalid_keys:
-        request.session["cart"] = {
-            key: quantity
-            for key, quantity in cart.items()
-            if key not in invalid_keys
-        }
-        request.session.modified = True
+        items.append(
+            {
+                "key": key,
+                "product": product,
+                "variant": variant,
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "total": item_total,
+                "image": image,
+                "stock": get_item_stock(
+                    product,
+                    variant,
+                ),
+            }
+        )
+
+        total += item_total
 
     return items, total
 
@@ -596,13 +686,19 @@ def update_cart(request):
 
 
 def remove_from_cart(request, key):
-    if request.method != "POST":
-        return redirect("cart")
+    cart = request.session.get(
+        "cart",
+        {},
+    )
 
-    cart = request.session.get("cart", {})
-    cart.pop(key, None)
+    cart.pop(
+        key,
+        None,
+    )
+
     request.session["cart"] = cart
     request.session.modified = True
+
     return redirect("cart")
 
 
