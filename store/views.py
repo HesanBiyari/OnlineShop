@@ -53,7 +53,7 @@ def product_queryset():
 
 
 def home(request):
-    products = product_queryset().order_by("-created_at")
+    products = product_queryset().order_by("-created_at", "-id")
     featured_products = list(products.filter(active_discount_q())[:4])
     featured_ids = {product.id for product in featured_products}
 
@@ -79,7 +79,6 @@ def home(request):
 
 def shop(request):
     products = product_queryset()
-
     query = request.GET.get("q", "").strip()
     category_slug = request.GET.get("category", "").strip()
     sort = request.GET.get("sort", "newest")
@@ -92,9 +91,10 @@ def shop(request):
         products = products.filter(category__slug=category_slug)
 
     if sort == "price_low":
+        # Database-level sorting remains stable and pagination-safe.
         products = products.order_by("price", "id")
     elif sort == "price_high":
-        products = products.order_by("-price", "id")
+        products = products.order_by("-price", "-id")
     elif sort == "name":
         products = products.order_by("name", "id")
     else:
@@ -125,13 +125,13 @@ def product_detail(request, pk):
         .exclude(pk=product.pk)
         .order_by("-created_at", "-id")[:4]
     )
-
+    variants = list(getattr(product, "active_variants", []))
     return render(
         request,
         "product_detail.html",
         {
             "product": product,
-            "variants": getattr(product, "active_variants", []),
+            "variants": variants,
             "related_products": related_products,
         },
     )
@@ -140,14 +140,12 @@ def product_detail(request, pk):
 def signup_view(request):
     if request.user.is_authenticated:
         return redirect("account")
-
     form = SignUpForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
         login(request, user)
         messages.success(request, "حساب شما با موفقیت ساخته شد.")
         return redirect("account")
-
     return render(request, "signup.html", {"form": form})
 
 
@@ -187,7 +185,9 @@ def logout_view(request):
 @login_required
 def account(request):
     orders = (
-        Order.objects.filter(user=request.user).prefetch_related("items")[:10]
+        Order.objects.filter(user=request.user)
+        .prefetch_related("items")
+        .order_by("-created_at", "-id")[:10]
     )
     return render(request, "account.html", {"orders": orders})
 
@@ -200,7 +200,19 @@ def _safe_positive_int(value, default=1):
     return parsed if parsed > 0 else default
 
 
-def get_cart_items(request):
+def _parse_cart_key(key):
+    try:
+        product_id, variant_id = str(key).split(":", 1)
+        product_id = int(product_id)
+        variant_id = int(variant_id)
+    except (TypeError, ValueError):
+        return None
+    if product_id <= 0 or variant_id < 0:
+        return None
+    return product_id, variant_id
+
+
+def get_cart_items(request, *, lock=False):
     cart = request.session.get("cart", {})
     if not isinstance(cart, dict) or not cart:
         return [], 0
@@ -208,15 +220,13 @@ def get_cart_items(request):
     entries = []
     product_ids = set()
     for key, raw_quantity in list(cart.items()):
-        try:
-            product_id, variant_id = str(key).split(":", 1)
-            product_id = int(product_id)
-            variant_id = int(variant_id)
-            quantity = _safe_positive_int(raw_quantity, 0)
-            if product_id <= 0 or variant_id < 0 or quantity <= 0:
-                continue
-        except (TypeError, ValueError):
+        parsed = _parse_cart_key(key)
+        if parsed is None:
             continue
+        quantity = _safe_positive_int(raw_quantity, 0)
+        if quantity <= 0:
+            continue
+        product_id, variant_id = parsed
         entries.append((str(key), product_id, variant_id, quantity))
         product_ids.add(product_id)
 
@@ -228,38 +238,52 @@ def get_cart_items(request):
         queryset=ProductImage.objects.order_by("-is_main", "id"),
         to_attr="display_images",
     )
+    variant_queryset = ProductVariant.objects.filter(is_active=True).order_by("price", "id")
+    if lock:
+        variant_queryset = variant_queryset.select_for_update()
+
     variant_prefetch = Prefetch(
         "variants",
-        queryset=ProductVariant.objects.filter(is_active=True),
+        queryset=variant_queryset,
         to_attr="cart_variants",
     )
-    products = (
+
+    products_query = (
         Product.objects.filter(id__in=product_ids)
         .select_related("category", "discount")
         .prefetch_related(image_prefetch, variant_prefetch)
     )
-    products_by_id = {product.id: product for product in products}
+    if lock:
+        products_query = products_query.select_for_update()
 
+    products = products_query
+    products_by_id = {product.id: product for product in products}
     items = []
     total = 0
+    cleaned_cart = {}
+
     for key, product_id, variant_id, quantity in entries:
         product = products_by_id.get(product_id)
         if not product:
             continue
 
-        variant = None
-        if variant_id != 0:
-            variants_by_id = {
-                variant.id: variant for variant in getattr(product, "cart_variants", [])
-            }
-            variant = variants_by_id.get(variant_id)
-            if not variant:
-                continue
+        variants_by_id = {
+            variant.id: variant for variant in getattr(product, "cart_variants", [])
+        }
+        variant = variants_by_id.get(variant_id) if variant_id else None
+        if variant_id and not variant:
+            continue
+
+        stock = get_item_stock(product, variant)
+        quantity = min(quantity, stock)
+        if quantity <= 0:
+            continue
 
         unit_price = get_item_price(product, variant)
         item_total = unit_price * quantity
-        image = product.display_images[0] if getattr(product, "display_images", []) else None
-        stock = get_item_stock(product, variant)
+        images = getattr(product, "display_images", [])
+        image = images[0] if images else None
+        cleaned_cart[key] = quantity
         items.append(
             {
                 "key": key,
@@ -274,8 +298,14 @@ def get_cart_items(request):
         )
         total += item_total
 
+    if cleaned_cart != cart:
+        request.session["cart"] = cleaned_cart
+        request.session.modified = True
+
     return items, total
 
+
+@login_required if False else lambda f: f
 
 def cart_view(request):
     items, total = get_cart_items(request)
@@ -285,18 +315,18 @@ def cart_view(request):
 @require_POST
 def add_to_cart(request, pk):
     product = get_object_or_404(Product.objects.prefetch_related("variants"), pk=pk)
-    variant_id = request.POST.get("variant_id", "")
+    raw_variant_id = request.POST.get("variant_id", "")
     quantity = _safe_positive_int(request.POST.get("quantity", 1), 1)
 
     active_variants = product.variants.filter(is_active=True)
     variant = None
     if active_variants.exists():
         try:
-            variant = active_variants.get(pk=int(variant_id))
+            variant = active_variants.get(pk=int(raw_variant_id))
         except (TypeError, ValueError, ProductVariant.DoesNotExist):
             messages.error(request, "گزینه انتخاب‌شده معتبر نیست.")
             return redirect("product_detail", pk=pk)
-    elif variant_id not in {"", "0"}:
+    elif raw_variant_id not in {"", "0"}:
         messages.error(request, "گزینه انتخاب‌شده معتبر نیست.")
         return redirect("product_detail", pk=pk)
 
@@ -312,7 +342,6 @@ def add_to_cart(request, pk):
     key = f"{product.id}:{variant.id if variant else 0}"
     current_quantity = _safe_positive_int(cart.get(key, 0), 0)
     cart[key] = min(current_quantity + quantity, stock)
-
     request.session["cart"] = cart
     request.session.modified = True
     messages.success(request, "محصول به سبد خرید اضافه شد.")
@@ -325,39 +354,39 @@ def update_cart(request):
     if not isinstance(cart, dict):
         cart = {}
 
-    cleaned_cart = dict(cart)
-    for key in list(cleaned_cart.keys()):
+    cleaned_cart = {}
+    product_ids = []
+    parsed_keys = {}
+    for key in cart:
+        parsed = _parse_cart_key(key)
+        if parsed:
+            parsed_keys[key] = parsed
+            product_ids.append(parsed[0])
+
+    products = {
+        product.id: product
+        for product in Product.objects.filter(id__in=set(product_ids)).select_related("discount")
+    }
+
+    for key, (product_id, variant_id) in parsed_keys.items():
         field_name = f"quantity_{key}"
         if field_name not in request.POST:
+            cleaned_cart[key] = cart[key]
             continue
 
         quantity = _safe_positive_int(request.POST.get(field_name), 0)
-        try:
-            product_id, variant_id = str(key).split(":", 1)
-            product_id = int(product_id)
-            variant_id = int(variant_id)
-        except (TypeError, ValueError):
-            cleaned_cart.pop(key, None)
-            continue
-
-        product = (
-            Product.objects.select_related("discount").filter(pk=product_id).first()
-        )
+        product = products.get(product_id)
         if not product:
-            cleaned_cart.pop(key, None)
             continue
 
         variant = None
-        if variant_id != 0:
+        if variant_id:
             variant = product.variants.filter(pk=variant_id, is_active=True).first()
             if not variant:
-                cleaned_cart.pop(key, None)
                 continue
 
         stock = get_item_stock(product, variant)
-        if quantity <= 0 or stock <= 0:
-            cleaned_cart.pop(key, None)
-        else:
+        if quantity > 0 and stock > 0:
             cleaned_cart[key] = min(quantity, stock)
 
     request.session["cart"] = cleaned_cart
@@ -395,24 +424,19 @@ def checkout(request):
         form = CheckoutForm(request.POST)
         if form.is_valid():
             with transaction.atomic():
-                # Re-read stock immediately before creating the order.
-                for item in items:
-                    stock = get_item_stock(item["product"], item["variant"])
-                    if item["quantity"] > stock:
-                        messages.error(
-                            request,
-                            f"موجودی «{item['product'].name}» کافی نیست.",
-                        )
-                        return redirect("cart")
+                # Lock and re-read everything so price and stock are current at order creation.
+                locked_items, locked_total = get_cart_items(request, lock=True)
+                if not locked_items:
+                    messages.error(request, "سبد خرید شما دیگر موجود نیست.")
+                    return redirect("cart")
 
                 order = Order.objects.create(
                     user=request.user,
                     full_name=form.cleaned_data["full_name"],
                     email=form.cleaned_data["email"],
                     phone=form.cleaned_data["phone"],
-                    total_amount=total,
+                    total_amount=locked_total,
                 )
-
                 OrderItem.objects.bulk_create(
                     [
                         OrderItem(
@@ -425,10 +449,9 @@ def checkout(request):
                             unit_price=item["unit_price"],
                             total_price=item["total"],
                         )
-                        for item in items
+                        for item in locked_items
                     ]
                 )
-
             return redirect("payment", order_id=order.id)
     else:
         form = CheckoutForm(initial={"email": request.user.email})
@@ -451,28 +474,23 @@ def payment(request, order_id):
 @login_required
 @require_POST
 def payment_success(request, order_id):
-    # This endpoint is intentionally kept as a LOCAL/DEMO payment completion
-    # flow. A real production gateway callback must verify the gateway response
-    # before this logic is allowed to run.
+    # LOCAL/DEMO payment completion only. A real gateway callback must verify the gateway result.
     with transaction.atomic():
         order = get_object_or_404(
             Order.objects.select_for_update(),
             pk=order_id,
             user=request.user,
         )
-
         if order.status != "pending":
             return redirect("order_detail", order_id=order.id)
 
         for item in order.items.select_related("product", "variant"):
-            if item.variant:
-                variant = ProductVariant.objects.select_for_update().get(
-                    pk=item.variant_id
-                )
-                if variant.stock < item.quantity:
+            if item.variant_id:
+                variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
+                if not variant.is_active or variant.stock < item.quantity:
                     order.status = "canceled"
                     order.save(update_fields=["status"])
-                    messages.error(request, "موجودی یکی از محصولات دیگر کافی نیست.")
+                    messages.error(request, "موجودی یکی از گزینه‌های محصول دیگر کافی نیست.")
                     return redirect("cart")
                 variant.stock -= item.quantity
                 variant.save(update_fields=["stock"])
@@ -487,10 +505,8 @@ def payment_success(request, order_id):
                 product.save(update_fields=["stock"])
 
         now = timezone.now()
-        order.status = "paid"
         order.payment_ref = f"DEMO-{order.id}-{int(now.timestamp())}"
         order.paid_at = now
-
         delivered = deliver_digital_codes(order)
         order.status = "completed" if delivered else "processing"
         order.save(update_fields=["status", "payment_ref", "paid_at"])

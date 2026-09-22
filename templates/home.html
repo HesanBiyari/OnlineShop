@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block title %}Giftweb | فروشگاه محصولات دیجیتال{% endblock %}
-
 {% block content %}
 <section class="hero">
     <div class="container hero-content">
@@ -28,10 +27,7 @@
 <section class="section">
     <div class="container">
         <div class="section-heading">
-            <div>
-                <span class="section-label">دسته‌بندی‌ها</span>
-                <h2>محصولات بر اساس دسته</h2>
-            </div>
+            <div><span class="section-label">دسته‌بندی‌ها</span><h2>محصولات بر اساس دسته</h2></div>
             <a class="view-all" href="{% url 'shop' %}">همه محصولات</a>
         </div>
         <div class="categories-grid">
@@ -51,10 +47,7 @@
 <section class="section products-section">
     <div class="container">
         <div class="section-heading">
-            <div>
-                <span class="section-label">پیشنهادها</span>
-                <h2>محصولات ویژه</h2>
-            </div>
+            <div><span class="section-label">پیشنهادها</span><h2>محصولات ویژه</h2></div>
             <a class="view-all" href="{% url 'shop' %}">مشاهده همه</a>
         </div>
         <div class="products-grid">
@@ -70,10 +63,7 @@
 <section class="section">
     <div class="container">
         <div class="section-heading">
-            <div>
-                <span class="section-label">تازه‌ها</span>
-                <h2>جدیدترین محصولات</h2>
-            </div>
+            <div><span class="section-label">تازه‌ها</span><h2>جدیدترین محصولات</h2></div>
             <a class="view-all" href="{% url 'shop' %}?sort=newest">مشاهده همه</a>
         </div>
         <div class="products-grid">
@@ -87,12 +77,7 @@
 
 <section class="benefits-section">
     <div class="container">
-        <div class="section-heading centered">
-            <div>
-                <span class="section-label">چرا Giftweb؟</span>
-                <h2>یک خرید ساده و شفاف</h2>
-            </div>
-        </div>
+        <div class="section-heading centered"><div><span class="section-label">چرا Giftweb؟</span><h2>یک خرید ساده و شفاف</h2></div></div>
         <div class="benefits-grid">
             <div class="benefit-card"><div class="benefit-icon">⚡</div><h3>سریع</h3><p>فرآیند سفارش بدون مراحل اضافی طراحی شده است.</p></div>
             <div class="benefit-card"><div class="benefit-icon">🔒</div><h3>امن</h3><p>حساب کاربری و عملیات حساس با احراز هویت و CSRF محافظت می‌شوند.</p></div>

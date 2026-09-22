@@ -5,7 +5,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
 
-PHONE_RE = re.compile(r"^(?:\+98|0098|0)?9\d{9}$|^09\d{9}$")
+PHONE_RE = re.compile(r"^(?:\+98|0098|0)?9\d{9}$")
 
 
 class SignUpForm(UserCreationForm):

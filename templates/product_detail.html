@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}{{ product.name }} | Giftweb{% endblock %}
-
 {% block content %}
 <section class="product-detail-page">
     <div class="container">
         <div class="product-detail">
             <div>
                 <div class="product-detail-image">
-                    {% with image=product.detail_images.0 %}
+                    {% with image=product.display_images|first %}
                         {% if image %}
                             <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
                         {% else %}
@@ -16,10 +15,10 @@
                         {% endif %}
                     {% endwith %}
                 </div>
-                {% if product.detail_images|length > 1 %}
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;">
-                        {% for image in product.detail_images %}
-                            <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" style="width:100%;height:80px;object-fit:contain;background:#f5f5fa;border-radius:10px;">
+                {% if product.display_images|length > 1 %}
+                    <div class="product-thumbnails">
+                        {% for image in product.display_images %}
+                            <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
                         {% endfor %}
                     </div>
                 {% endif %}
@@ -31,15 +30,26 @@
                 <div class="product-description">{{ product.description|linebreaksbr }}</div>
 
                 <div class="product-detail-price">
-                    {% if product.discount and product.discount.is_active_now %}
-                        <span class="old-price">{{ product.price|floatformat:0 }} تومان</span>
+                    {% if variants %}
+                        {% if product.catalog_old_price %}<span class="old-price">{{ product.catalog_old_price|floatformat:0 }} تومان</span>{% endif %}
+                        <strong>شروع از {{ product.catalog_price|floatformat:0 }} تومان</strong>
+                    {% else %}
+                        {% if product.catalog_old_price %}<span class="old-price">{{ product.catalog_old_price|floatformat:0 }} تومان</span>{% endif %}
+                        <strong>{{ product.catalog_price|floatformat:0 }} تومان</strong>
                     {% endif %}
-                    <strong>{{ product.final_price|floatformat:0 }} تومان</strong>
                 </div>
 
-                <span class="stock-status {% if product.stock > 0 or variants %}available{% else %}unavailable{% endif %}">
-                    {% if variants %}با انتخاب گزینه، موجودی همان گزینه محاسبه می‌شود.{% elif product.stock > 0 %}موجود{% else %}ناموجود{% endif %}
-                </span>
+                {% if variants %}
+                    {% if product.catalog_has_stock %}
+                        <span class="stock-status available">گزینه موردنظر را انتخاب کنید.</span>
+                    {% else %}
+                        <span class="stock-status unavailable">همه گزینه‌ها ناموجود هستند.</span>
+                    {% endif %}
+                {% elif product.stock > 0 %}
+                    <span class="stock-status available">موجود</span>
+                {% else %}
+                    <span class="stock-status unavailable">ناموجود</span>
+                {% endif %}
 
                 <form class="product-buy-form" method="post" action="{% url 'add_to_cart' product.pk %}">
                     {% csrf_token %}
@@ -49,25 +59,26 @@
                             <select id="variant_id" name="variant_id" required>
                                 <option value="">انتخاب کنید</option>
                                 {% for variant in variants %}
-                                    <option value="{{ variant.id }}">{{ variant.name }} — {{ variant.final_price|floatformat:0 }} تومان ({{ variant.stock }} موجود)</option>
+                                    <option value="{{ variant.id }}" {% if not variant.stock %}disabled{% endif %}>
+                                        {{ variant.name }} — {{ variant.final_price|floatformat:0 }} تومان{% if variant.stock %} ({{ variant.stock }} موجود){% else %} (ناموجود){% endif %}
+                                    </option>
                                 {% endfor %}
                             </select>
                         </div>
                     {% endif %}
+
                     <div class="quantity-row">
                         <label for="quantity">تعداد</label>
                         <input id="quantity" type="number" name="quantity" value="1" min="1" inputmode="numeric">
                     </div>
-                    <button class="product-button" type="submit" {% if not variants and product.stock <= 0 %}disabled{% endif %}>افزودن به سبد</button>
+                    <button class="product-button" type="submit" {% if not product.catalog_has_stock %}disabled{% endif %}>افزودن به سبد</button>
                 </form>
             </div>
         </div>
 
         {% if related_products %}
             <div class="related-products">
-                <div class="section-heading">
-                    <div><span class="section-label">پیشنهادها</span><h2>محصولات مرتبط</h2></div>
-                </div>
+                <div class="section-heading"><div><span class="section-label">پیشنهادها</span><h2>محصولات مرتبط</h2></div></div>
                 <div class="products-grid">
                     {% for related in related_products %}
                         {% include "partials/product_card.html" with product=related %}

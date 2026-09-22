@@ -1,30 +1,28 @@
 {% extends "base.html" %}
-
-{% block title %}ثبت سفارش | Giftweb{% endblock %}
-
+{% block title %}تسویه حساب | Giftweb{% endblock %}
 {% block content %}
 <section class="checkout-page">
     <div class="container">
-        <div class="section-heading"><div><span class="section-label">مرحله بعد</span><h1>ثبت سفارش</h1></div></div>
+        <div class="section-heading"><div><span class="section-label">نهایی‌سازی</span><h1>تسویه حساب</h1></div></div>
         <div class="checkout-layout">
             <div class="checkout-form-card">
                 <form method="post">
                     {% csrf_token %}
+                    {{ form.non_field_errors }}
                     {{ form.as_p }}
-                    <button class="product-button" type="submit">ثبت و رفتن به پرداخت</button>
+                    <button class="product-button" type="submit">ثبت سفارش</button>
                 </form>
             </div>
-            <aside class="checkout-summary">
-                <h3>خلاصه سفارش</h3>
+            <div class="checkout-summary">
+                <h2>خلاصه سفارش</h2>
                 {% for item in items %}
                     <div class="checkout-item">
-                        <div>{{ item.product.name }}{% if item.variant %} — {{ item.variant.name }}{% endif %} × {{ item.quantity }}</div>
-                        <strong>{{ item.total|floatformat:0 }}</strong>
+                        <span>{{ item.product.name }}{% if item.variant %} - {{ item.variant.name }}{% endif %} × {{ item.quantity }}</span>
+                        <strong>{{ item.total|floatformat:0 }} تومان</strong>
                     </div>
                 {% endfor %}
-                <hr>
-                <p style="margin-top:15px;"><strong>جمع: {{ total|floatformat:0 }} تومان</strong></p>
-            </aside>
+                <div class="cart-summary"><strong>مجموع: {{ total|floatformat:0 }} تومان</strong></div>
+            </div>
         </div>
     </div>
 </section>

@@ -1368,3 +1368,44 @@ a {
     }
 
 }
+
+/* ===== Repair additions ===== */
+.product-thumbnails {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+}
+.product-thumbnails img {
+    width: 100%;
+    height: 80px;
+    object-fit: contain;
+    background: #f5f5fa;
+    border-radius: 10px;
+}
+.auth-switch {
+    margin-top: 20px;
+}
+.auth-switch a {
+    color: #6c4cff;
+    font-weight: 700;
+}
+.cart-remove-button {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+}
+.product-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+@media (max-width: 600px) {
+    .product-thumbnails {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .product-thumbnails img {
+        height: 64px;
+    }
+}

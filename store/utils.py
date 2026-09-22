@@ -13,11 +13,7 @@ def get_item_stock(product, variant=None):
 
 
 def deliver_digital_codes(order):
-    """Assign available, unused digital codes to order items.
-
-    Callers should normally invoke this from inside a transaction. The nested
-    atomic block also makes the function safe when called independently.
-    """
+    """Assign unused digital codes to order items inside a transaction."""
     all_delivered = True
 
     with transaction.atomic():
@@ -42,7 +38,6 @@ def deliver_digital_codes(order):
                 .filter(**filters)
                 .order_by("id")[:needed]
             )
-
             if len(codes) < needed:
                 all_delivered = False
 
@@ -51,8 +46,6 @@ def deliver_digital_codes(order):
                 code.is_used = True
                 code.used_at = now
                 code.order_item = item
-                code.save(
-                    update_fields=["is_used", "used_at", "order_item"]
-                )
+                code.save(update_fields=["is_used", "used_at", "order_item"])
 
     return all_delivered

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
@@ -39,12 +41,53 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    def _active_variant_list(self):
+        prefetched = getattr(self, "active_variants", None)
+        if prefetched is not None:
+            return list(prefetched)
+        return list(self.variants.filter(is_active=True).order_by("price", "id"))
+
     @property
     def final_price(self):
         discount = getattr(self, "discount", None)
         if discount and discount.is_active_now:
             discount_amount = self.price * discount.percent // 100
             return max(0, self.price - discount_amount)
+        return self.price
+
+    @property
+    def catalog_has_stock(self):
+        """Whether the item can currently be added to the cart.
+
+        Once a product has active variants, the cart requires a variant and the
+        product-level stock is no longer a valid fallback.
+        """
+        variants = self._active_variant_list()
+        if variants:
+            return any(variant.stock > 0 for variant in variants)
+        return self.stock > 0
+
+    @property
+    def catalog_price(self):
+        """Lowest variant price, preferring variants that are currently in stock."""
+        variants = self._active_variant_list()
+        if variants:
+            available = [variant.final_price for variant in variants if variant.stock > 0]
+            prices = available or [variant.final_price for variant in variants]
+            return min(prices)
+        return self.final_price
+
+    @property
+    def catalog_old_price(self):
+        """Raw price corresponding to the catalog price when a live discount exists."""
+        discount = getattr(self, "discount", None)
+        if not discount or not discount.is_active_now:
+            return None
+        variants = self._active_variant_list()
+        if variants:
+            available = [variant.price for variant in variants if variant.stock > 0]
+            prices = available or [variant.price for variant in variants]
+            return min(prices)
         return self.price
 
 
@@ -143,7 +186,6 @@ class Discount(models.Model):
     def is_active_now(self):
         if not self.is_active:
             return False
-
         now = timezone.now()
         if self.starts_at and now < self.starts_at:
             return False

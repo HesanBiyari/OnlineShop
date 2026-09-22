@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block title %}فروشگاه | Giftweb{% endblock %}
-
 {% block content %}
 <section class="shop-page">
     <div class="container">
@@ -9,11 +8,11 @@
             <h1>فروشگاه</h1>
             <p>محصول موردنظر خود را پیدا و انتخاب کنید.</p>
         </div>
-
         <div class="shop-toolbar">
             <form class="shop-search" method="get" action="{% url 'shop' %}">
                 <input type="search" name="q" value="{{ query }}" placeholder="جستجو در محصولات...">
                 {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
+                {% if selected_sort and selected_sort != "newest" %}<input type="hidden" name="sort" value="{{ selected_sort }}">{% endif %}
                 <button type="submit">جستجو</button>
             </form>
             <form class="sort-form" method="get" action="{% url 'shop' %}">
@@ -39,7 +38,6 @@
                     {% endfor %}
                 </div>
             </aside>
-
             <div>
                 <div class="shop-results">{{ page_obj.paginator.count }} محصول پیدا شد.</div>
                 <div class="products-grid shop-products-grid">
@@ -53,15 +51,14 @@
                         </div>
                     {% endfor %}
                 </div>
-
                 {% if page_obj.paginator.num_pages > 1 %}
                     <div class="pagination">
                         {% if page_obj.has_previous %}
-                            <a href="?page={{ page_obj.previous_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}&sort={{ selected_sort }}">قبلی</a>
+                            <a href="?page={{ page_obj.previous_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}&sort={{ selected_sort|urlencode }}">قبلی</a>
                         {% endif %}
                         <span class="current">صفحه {{ page_obj.number }} از {{ page_obj.paginator.num_pages }}</span>
                         {% if page_obj.has_next %}
-                            <a href="?page={{ page_obj.next_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}&sort={{ selected_sort }}">بعدی</a>
+                            <a href="?page={{ page_obj.next_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}&sort={{ selected_sort|urlencode }}">بعدی</a>
                         {% endif %}
                     </div>
                 {% endif %}

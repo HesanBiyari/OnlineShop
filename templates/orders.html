@@ -1,7 +1,5 @@
 {% extends "base.html" %}
-
 {% block title %}سفارش‌های من | Giftweb{% endblock %}
-
 {% block content %}
 <section class="account-page">
     <div class="container">
@@ -17,7 +15,6 @@
                 <div class="no-products"><h3>سفارشی وجود ندارد.</h3></div>
             {% endfor %}
         </div>
-
         {% if page_obj.paginator.num_pages > 1 %}
             <div class="pagination">
                 {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">قبلی</a>{% endif %}
