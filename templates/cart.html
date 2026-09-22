@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}سبد خرید | Giftweb{% endblock %}
+
+{% block content %}
+<section class="cart-page">
+    <div class="container">
+        <div class="section-heading"><div><span class="section-label">سبد خرید</span><h1>محصولات شما</h1></div></div>
+
+        {% if items %}
+            <form method="post" action="{% url 'update_cart' %}">
+                {% csrf_token %}
+                <div class="cart-list">
+                    {% for item in items %}
+                        <div class="cart-item">
+                            <div class="cart-item-image">
+                                {% if item.image %}<img src="{{ item.image.image.url }}" alt="{{ item.product.name }}">{% else %}<span>🎁</span>{% endif %}
+                            </div>
+                            <div>
+                                <strong><a href="{% url 'product_detail' item.product.id %}">{{ item.product.name }}</a></strong>
+                                {% if item.variant %}<div>{{ item.variant.name }}</div>{% endif %}
+                                <small>{{ item.unit_price|floatformat:0 }} تومان</small>
+                            </div>
+                            <div class="cart-item-quantity">
+                                <label for="quantity_{{ item.key }}">تعداد</label>
+                                <input id="quantity_{{ item.key }}" type="number" min="1" max="{{ item.stock }}" name="quantity_{{ item.key }}" value="{{ item.quantity }}">
+                            </div>
+                            <div class="cart-item-total"><strong>{{ item.total|floatformat:0 }} تومان</strong></div>
+                            <div>
+                                <button class="remove-link" type="submit" name="remove_key" value="{{ item.key }}" formaction="{% url 'remove_from_cart' item.key %}">حذف</button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="cart-summary">
+                    <strong>جمع کل: {{ total|floatformat:0 }} تومان</strong>
+                    <div class="cart-actions">
+                        <button class="product-button" type="submit">به‌روزرسانی سبد</button>
+                        <a class="secondary-button" href="{% url 'checkout' %}">ادامه و ثبت سفارش</a>
+                    </div>
+                </div>
+            </form>
+            <form method="post" action="{% url 'clear_cart' %}">
+                {% csrf_token %}
+                <button class="danger-button" type="submit">خالی کردن سبد</button>
+            </form>
+        {% else %}
+            <div class="no-products"><h3>سبد خرید خالی است.</h3><a class="product-button" href="{% url 'shop' %}">مشاهده فروشگاه</a></div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

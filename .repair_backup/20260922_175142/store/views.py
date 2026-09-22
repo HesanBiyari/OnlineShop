@@ -35,11 +35,11 @@ def active_discount_q(now=None):
     )
 
 
-def product_queryset():
+def product_queryset(image_attr: str = "prefetched_images"):
     product_images = Prefetch(
         "images",
         queryset=ProductImage.objects.order_by("-is_main", "id"),
-        to_attr="display_images",
+        to_attr=image_attr,
     )
     active_variants = Prefetch(
         "variants",
@@ -53,7 +53,7 @@ def product_queryset():
 
 
 def home(request):
-    products = product_queryset().order_by("-created_at")
+    products = product_queryset("homepage_images").order_by("-created_at")
     featured_products = list(products.filter(active_discount_q())[:4])
     featured_ids = {product.id for product in featured_products}
 
@@ -78,7 +78,7 @@ def home(request):
 
 
 def shop(request):
-    products = product_queryset()
+    products = product_queryset("shop_images")
 
     query = request.GET.get("q", "").strip()
     category_slug = request.GET.get("category", "").strip()
@@ -118,9 +118,9 @@ def shop(request):
 
 
 def product_detail(request, pk):
-    product = get_object_or_404(product_queryset(), pk=pk)
+    product = get_object_or_404(product_queryset("detail_images"), pk=pk)
     related_products = (
-        product_queryset()
+        product_queryset("related_images")
         .filter(category=product.category)
         .exclude(pk=product.pk)
         .order_by("-created_at", "-id")[:4]
@@ -226,7 +226,7 @@ def get_cart_items(request):
     image_prefetch = Prefetch(
         "images",
         queryset=ProductImage.objects.order_by("-is_main", "id"),
-        to_attr="display_images",
+        to_attr="cart_images",
     )
     variant_prefetch = Prefetch(
         "variants",
@@ -258,7 +258,7 @@ def get_cart_items(request):
 
         unit_price = get_item_price(product, variant)
         item_total = unit_price * quantity
-        image = product.display_images[0] if getattr(product, "display_images", []) else None
+        image = product.cart_images[0] if getattr(product, "cart_images", []) else None
         stock = get_item_stock(product, variant)
         items.append(
             {

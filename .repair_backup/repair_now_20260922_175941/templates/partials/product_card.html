@@ -1,0 +1,42 @@
+<article class="product-card">
+    <a href="{% url 'product_detail' product.pk %}">
+        <div class="product-image">
+            {% with image=product.homepage_images.0|default:product.shop_images.0|default:product.related_images.0 %}
+                {% if image %}
+                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" loading="lazy">
+                {% else %}
+                    <div class="product-placeholder">🎁</div>
+                {% endif %}
+            {% endwith %}
+            {% if product.discount and product.discount.is_active_now %}
+                <span class="product-badge">{{ product.discount.percent }}٪ تخفیف</span>
+            {% endif %}
+        </div>
+    </a>
+
+    <div class="product-info">
+        {% if product.category %}
+            <div class="product-category">{{ product.category.name }}</div>
+        {% endif %}
+        <h3>
+            <a href="{% url 'product_detail' product.pk %}">{{ product.name }}</a>
+        </h3>
+
+        <div class="product-price">
+            {% if product.discount and product.discount.is_active_now %}
+                <span class="old-price">{{ product.price|floatformat:0 }} تومان</span>
+            {% endif %}
+            <strong>{{ product.final_price|floatformat:0 }} تومان</strong>
+        </div>
+
+        {% if product.stock > 0 %}
+            <span class="stock-status available">موجود</span>
+        {% else %}
+            <span class="stock-status unavailable">ناموجود</span>
+        {% endif %}
+
+        <a class="product-button" href="{% url 'product_detail' product.pk %}">
+            مشاهده محصول
+        </a>
+    </div>
+</article>

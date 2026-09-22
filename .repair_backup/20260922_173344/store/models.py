@@ -1,15 +1,11 @@
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
 from django.utils import timezone
 
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
-
-    class Meta:
-        ordering = ("name",)
 
     def __str__(self):
         return self.name
@@ -21,20 +17,12 @@ class Product(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="products",
     )
     name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
+    description = models.TextField()
     price = models.PositiveIntegerField()
     stock = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ("-created_at",)
-        indexes = [
-            models.Index(fields=("-created_at",)),
-            models.Index(fields=("category",)),
-        ]
 
     def __str__(self):
         return self.name
@@ -44,8 +32,46 @@ class Product(models.Model):
         discount = getattr(self, "discount", None)
         if discount and discount.is_active_now:
             discount_amount = self.price * discount.percent // 100
-            return max(0, self.price - discount_amount)
+            return self.price - discount_amount
         return self.price
+
+    @property
+    def catalog_variants(self):
+        cached = getattr(self, "catalog_variants_cache", None)
+        if cached is not None:
+            return cached
+        return self.variants.filter(is_active=True)
+
+    @property
+    def catalog_price(self):
+        variants = list(self.catalog_variants)
+        if variants:
+            available = [v for v in variants if v.stock > 0]
+            variants = available or variants
+            return min(v.final_price for v in variants)
+        return self.final_price
+
+    @property
+    def catalog_old_price(self):
+        variants = list(self.catalog_variants)
+        if variants:
+            available = [v for v in variants if v.stock > 0]
+            variants = available or variants
+            if self.discount and self.discount.is_active_now:
+                old_price = min(v.price for v in variants)
+                new_price = min(v.final_price for v in variants)
+                return old_price if old_price > new_price else None
+            return None
+        if self.discount and self.discount.is_active_now and self.price > self.final_price:
+            return self.price
+        return None
+
+    @property
+    def catalog_has_stock(self):
+        variants = list(self.catalog_variants)
+        if variants:
+            return any(v.stock > 0 for v in variants)
+        return self.stock > 0
 
 
 class ProductVariant(models.Model):
@@ -60,25 +86,15 @@ class ProductVariant(models.Model):
     sku = models.CharField(max_length=100, unique=True)
     is_active = models.BooleanField(default=True)
 
-    class Meta:
-        ordering = ("price", "id")
-        indexes = [
-            models.Index(fields=("product", "is_active")),
-        ]
-
     def __str__(self):
         return f"{self.product.name} - {self.name}"
-
-    def clean(self):
-        if self.product_id is None:
-            return
 
     @property
     def final_price(self):
         discount = getattr(self.product, "discount", None)
         if discount and discount.is_active_now:
             discount_amount = self.price * discount.percent // 100
-            return max(0, self.price - discount_amount)
+            return self.price - discount_amount
         return self.price
 
 
@@ -91,15 +107,6 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to="products/")
     alt_text = models.CharField(max_length=200, blank=True)
     is_main = models.BooleanField(default=False)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=("product",),
-                condition=Q(is_main=True),
-                name="one_main_image_per_product",
-            ),
-        ]
 
     def __str__(self):
         return f"{self.product.name} - Image"
@@ -116,34 +123,13 @@ class Discount(models.Model):
     ends_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                condition=Q(percent__gte=0) & Q(percent__lte=100),
-                name="discount_percent_0_100",
-            ),
-            models.CheckConstraint(
-                condition=Q(starts_at__isnull=True)
-                | Q(ends_at__isnull=True)
-                | Q(starts_at__lte=F("ends_at")),
-                name="discount_start_before_end",
-            ),
-        ]
-
     def __str__(self):
         return f"{self.product.name} - {self.percent}%"
-
-    def clean(self):
-        if not 0 <= self.percent <= 100:
-            raise ValidationError({"percent": "درصد تخفیف باید بین ۰ تا ۱۰۰ باشد."})
-        if self.starts_at and self.ends_at and self.starts_at > self.ends_at:
-            raise ValidationError({"ends_at": "زمان پایان تخفیف نمی‌تواند قبل از شروع آن باشد."})
 
     @property
     def is_active_now(self):
         if not self.is_active:
             return False
-
         now = timezone.now()
         if self.starts_at and now < self.starts_at:
             return False
@@ -179,20 +165,6 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
 
-    class Meta:
-        ordering = ("-created_at",)
-        constraints = [
-            models.UniqueConstraint(
-                fields=("payment_ref",),
-                condition=~Q(payment_ref=""),
-                name="unique_non_empty_payment_ref",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=("user", "-created_at")),
-            models.Index(fields=("status", "-created_at")),
-        ]
-
     def __str__(self):
         return f"Order #{self.id} - {self.user.username}"
 
@@ -203,10 +175,7 @@ class OrderItem(models.Model):
         on_delete=models.CASCADE,
         related_name="items",
     )
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.PROTECT,
-    )
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
     variant = models.ForeignKey(
         ProductVariant,
         on_delete=models.PROTECT,
@@ -218,23 +187,6 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.PositiveIntegerField(default=0)
     total_price = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                condition=Q(quantity__gte=1),
-                name="order_item_quantity_gte_1",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=("order",)),
-            models.Index(fields=("product",)),
-        ]
-
-    def clean(self):
-        if self.variant_id and self.product_id:
-            if self.variant.product_id != self.product_id:
-                raise ValidationError("Variant باید متعلق به همین محصول باشد.")
 
     def __str__(self):
         return f"{self.product_name} - Order #{self.order.id}"
@@ -265,17 +217,9 @@ class DigitalCode(models.Model):
     )
     used_at = models.DateTimeField(null=True, blank=True)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=("product", "variant", "is_used")),
-            models.Index(fields=("order_item",)),
-        ]
-
     def clean(self):
         if self.variant and self.variant.product_id != self.product_id:
             raise ValidationError("Variant باید متعلق به همین محصول باشد.")
-        if self.is_used and self.order_item_id is None:
-            raise ValidationError("کد مصرف‌شده باید به یک آیتم سفارش متصل باشد.")
 
     def __str__(self):
         return f"{self.product.name} - {self.code}"

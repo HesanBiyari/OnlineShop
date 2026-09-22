@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}ثبت سفارش | Giftweb{% endblock %}
+
+{% block content %}
+<section class="checkout-page">
+    <div class="container">
+        <div class="section-heading"><div><span class="section-label">مرحله بعد</span><h1>ثبت سفارش</h1></div></div>
+        <div class="checkout-layout">
+            <div class="checkout-form-card">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button class="product-button" type="submit">ثبت و رفتن به پرداخت</button>
+                </form>
+            </div>
+            <aside class="checkout-summary">
+                <h3>خلاصه سفارش</h3>
+                {% for item in items %}
+                    <div class="checkout-item">
+                        <div>{{ item.product.name }}{% if item.variant %} — {{ item.variant.name }}{% endif %} × {{ item.quantity }}</div>
+                        <strong>{{ item.total|floatformat:0 }}</strong>
+                    </div>
+                {% endfor %}
+                <hr>
+                <p style="margin-top:15px;"><strong>جمع: {{ total|floatformat:0 }} تومان</strong></p>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
