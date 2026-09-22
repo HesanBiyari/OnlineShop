@@ -43,10 +43,23 @@
         <div class="container">
 
             <div class="nav-links">
-                <a href="/">خانه</a>
-                <a href="#">فروشگاه</a>
-                <a href="#">گیفت کارت</a>
-                <a href="#">دسته‌بندی‌ها</a>
+
+                <a href="{% url 'home' %}">
+                    خانه
+                </a>
+
+                <a href="{% url 'shop' %}">
+                    فروشگاه
+                </a>
+
+                <a href="{% url 'shop' %}?category=gift-card">
+                    گیفت کارت
+                </a>
+
+                <a href="{% url 'shop' %}">
+                    دسته‌بندی‌ها
+                </a>
+
             </div>
 
         </div>

@@ -709,3 +709,304 @@ a {
 .stock-status.unavailable {
     color: #dc3545;
 }
+
+/* =========================
+   SHOP PAGE
+========================= */
+
+.shop-page {
+    padding: 60px 0 80px;
+}
+
+.shop-header {
+    margin-bottom: 35px;
+}
+
+.shop-header h1 {
+    font-size: 34px;
+    margin-bottom: 10px;
+}
+
+.shop-header p {
+    color: #777;
+    font-size: 14px;
+}
+
+
+/* =========================
+   SHOP TOOLBAR
+========================= */
+
+.shop-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.shop-search {
+    display: flex;
+    flex: 1;
+    max-width: 600px;
+}
+
+.shop-search input {
+    flex: 1;
+    padding: 13px 16px;
+    border: 1px solid #ddd;
+    border-radius: 0 8px 8px 0;
+    outline: none;
+    background: #fff;
+}
+
+.shop-search input:focus {
+    border-color: #6c4cff;
+}
+
+.shop-search button {
+    border: none;
+    padding: 0 25px;
+    background: #6c4cff;
+    color: #fff;
+    border-radius: 8px 0 0 8px;
+    cursor: pointer;
+}
+
+.sort-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sort-form label {
+    font-size: 13px;
+    color: #666;
+}
+
+.sort-form select {
+    padding: 11px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    outline: none;
+}
+
+
+/* =========================
+   SHOP LAYOUT
+========================= */
+
+.shop-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+
+/* =========================
+   SIDEBAR
+========================= */
+
+.shop-sidebar {
+    position: sticky;
+    top: 20px;
+}
+
+.filter-box {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 20px;
+}
+
+.filter-box h3 {
+    font-size: 16px;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.filter-box a {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 4px;
+    transition: 0.2s;
+}
+
+.filter-box a:hover {
+    background: #f3f1ff;
+    color: #6c4cff;
+}
+
+.filter-box a.active {
+    background: #6c4cff;
+    color: #fff;
+}
+
+
+/* =========================
+   SHOP RESULTS
+========================= */
+
+.shop-results {
+    margin-bottom: 18px;
+    color: #777;
+    font-size: 13px;
+}
+
+
+/* =========================
+   PRODUCT IMAGES
+========================= */
+
+.shop-products-grid .product-image {
+    width: 100%;
+    height: 220px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5fa;
+}
+
+.shop-products-grid .product-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+
+/* =========================
+   NO PRODUCTS
+========================= */
+
+.no-products {
+    grid-column: 1 / -1;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.no-products h3 {
+    margin-bottom: 10px;
+}
+
+.no-products p {
+    color: #777;
+    margin-bottom: 25px;
+}
+
+
+/* =========================
+   PAGINATION
+========================= */
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+}
+
+.pagination a,
+.pagination .current {
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    font-size: 13px;
+}
+
+.pagination a {
+    background: #fff;
+    border: 1px solid #ddd;
+}
+
+.pagination a:hover {
+    border-color: #6c4cff;
+    color: #6c4cff;
+}
+
+.pagination .current {
+    background: #6c4cff;
+    color: #fff;
+}
+
+
+/* =========================
+   SHOP MOBILE
+========================= */
+
+@media (max-width: 992px) {
+
+    .shop-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .shop-sidebar {
+        position: static;
+    }
+
+    .filter-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .filter-box h3 {
+        width: 100%;
+    }
+
+    .filter-box a {
+        margin: 0;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .shop-page {
+        padding: 40px 0 60px;
+    }
+
+    .shop-header h1 {
+        font-size: 28px;
+    }
+
+    .shop-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .shop-search {
+        max-width: none;
+        width: 100%;
+    }
+
+    .sort-form {
+        justify-content: space-between;
+    }
+
+    .sort-form select {
+        flex: 1;
+    }
+
+}

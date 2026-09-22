@@ -1,4 +1,5 @@
-from django.db.models import Prefetch
+from django.core.paginator import Paginator
+from django.db.models import Prefetch, Q
 from django.shortcuts import render
 
 from .models import Category, Product, ProductImage
@@ -48,3 +49,72 @@ def home(request):
     }
 
     return render(request, "home.html", context)
+
+
+def shop(request):
+
+    product_images = Prefetch(
+        "images",
+        queryset=ProductImage.objects.order_by("-is_main", "id"),
+        to_attr="shop_images",
+    )
+
+    products = (
+        Product.objects
+        .select_related("category", "discount")
+        .prefetch_related(product_images)
+        .all()
+    )
+
+    categories = Category.objects.order_by("name")
+
+    # Search
+    search_query = request.GET.get("q", "").strip()
+
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query)
+            | Q(description__icontains=search_query)
+            | Q(category__name__icontains=search_query)
+        )
+
+    # Category filter
+    category_slug = request.GET.get("category", "").strip()
+
+    if category_slug:
+        products = products.filter(
+            category__slug=category_slug
+        )
+
+    # Sorting
+    sort = request.GET.get("sort", "newest")
+
+    if sort == "price_low":
+        products = products.order_by("price")
+
+    elif sort == "price_high":
+        products = products.order_by("-price")
+
+    elif sort == "name":
+        products = products.order_by("name")
+
+    else:
+        products = products.order_by("-created_at")
+
+    # Pagination
+    paginator = Paginator(products, 12)
+
+    page_number = request.GET.get("page")
+
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        "products": page_obj,
+        "page_obj": page_obj,
+        "categories": categories,
+        "search_query": search_query,
+        "selected_category": category_slug,
+        "selected_sort": sort,
+    }
+
+    return render(request, "shop.html", context)
