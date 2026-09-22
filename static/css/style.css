@@ -682,3 +682,30 @@ a {
     z-index: 2;
     background: #ffffff;
 }
+
+.old-price {
+    display: block;
+    color: #999;
+    font-size: 12px;
+    text-decoration: line-through;
+    margin-bottom: 5px;
+}
+
+.product-price strong {
+    display: block;
+    font-size: 17px;
+}
+
+.stock-status {
+    display: inline-block;
+    font-size: 12px;
+    margin-bottom: 15px;
+}
+
+.stock-status.available {
+    color: #198754;
+}
+
+.stock-status.unavailable {
+    color: #dc3545;
+}

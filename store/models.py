@@ -21,6 +21,14 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+    
+    @property
+    def final_price(self):
+        if hasattr(self, "discount") and self.discount.is_active:
+            discount_amount = self.price * self.discount.percent // 100
+            return self.price - discount_amount
+
+        return self.price
 
 
 class ProductVariant(models.Model):

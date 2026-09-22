@@ -230,12 +230,45 @@ Giftweb | فروشگاه محصولات دیجیتال
 
                         <div class="product-price">
 
-                            <strong>
-                                {{ product.price|floatformat:0 }}
-                                تومان
-                            </strong>
+                        
+
+                            {% if product.discount and product.discount.is_active %}
+
+                                <span class="old-price">
+                                    {{ product.price|floatformat:0 }}
+                                    تومان
+                                </span>
+
+                                <strong>
+                                    {{ product.final_price|floatformat:0 }}
+                                    تومان
+                                </strong>
+
+                            {% else %}
+
+                                <strong>
+                                    {{ product.price|floatformat:0 }}
+                                    تومان
+                                </strong>
+
+                            {% endif %}
 
                         </div>
+
+                        {% if product.stock > 0 %}
+
+                            <span class="stock-status available">
+                                موجود
+                            </span>
+
+                        {% else %}
+
+                            <span class="stock-status unavailable">
+                                ناموجود
+                            </span>
+
+                        {% endif %}
+
 
 
                         <a href="#" class="product-button">
