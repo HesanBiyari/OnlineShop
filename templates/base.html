@@ -1,0 +1,95 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}Giftweb{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+
+<body>
+
+    <header class="site-header">
+        <div class="container header-content">
+
+            <a href="/" class="logo">
+                Giftweb
+            </a>
+
+            <form class="search-box">
+                <input
+                    type="text"
+                    placeholder="جستجوی محصول..."
+                >
+                <button type="submit">
+                    جستجو
+                </button>
+            </form>
+
+            <div class="header-actions">
+                <a href="#">ورود</a>
+                <a href="#">سبد خرید</a>
+            </div>
+
+        </div>
+    </header>
+
+
+    <nav class="navbar">
+        <div class="container">
+
+            <div class="nav-links">
+                <a href="/">خانه</a>
+                <a href="#">فروشگاه</a>
+                <a href="#">گیفت کارت</a>
+                <a href="#">دسته‌بندی‌ها</a>
+            </div>
+
+        </div>
+    </nav>
+
+
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+
+    <footer class="site-footer">
+        <div class="container footer-content">
+
+            <div>
+                <h3>Giftweb</h3>
+                <p>
+                    فروشگاه محصولات دیجیتال
+                </p>
+            </div>
+
+            <div>
+                <h4>دسترسی سریع</h4>
+                <a href="/">خانه</a>
+                <a href="#">فروشگاه</a>
+                <a href="#">تماس با ما</a>
+            </div>
+
+            <div>
+                <h4>راهنما</h4>
+                <a href="#">سوالات متداول</a>
+                <a href="#">راهنمای خرید</a>
+            </div>
+
+        </div>
+
+        <div class="footer-bottom">
+            <p>
+                © 2026 Giftweb
+            </p>
+        </div>
+    </footer>
+
+</body>
+</html>
