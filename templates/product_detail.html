@@ -6,22 +6,26 @@
     <div class="container">
         <div class="product-detail">
             <div>
-                <div class="product-detail-image">
-                    {% with image=product.display_images|first %}
-                        {% if image %}
-                            <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
-                        {% else %}
-                            <div class="product-placeholder">🎁</div>
-                        {% endif %}
-                    {% endwith %}
-                </div>
-                {% if product.display_images|length > 1 %}
-                    <div class="product-thumbnails">
-                        {% for image in product.display_images %}
-                            <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
-                        {% endfor %}
+                <div class="product-gallery" data-product-gallery>
+                    <div class="product-detail-image">
+                        {% with image=product.display_images|first %}
+                            {% if image %}
+                                <img data-gallery-main src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
+                            {% else %}
+                                <div class="product-placeholder">🎁</div>
+                            {% endif %}
+                        {% endwith %}
                     </div>
-                {% endif %}
+                    {% if product.display_images %}
+                        <div class="product-thumbnails" role="list">
+                            {% for image in product.display_images %}
+                                <button type="button" class="product-thumbnail{% if forloop.first %} is-active{% endif %}" data-gallery-thumb data-image-url="{{ image.image.url }}" data-image-alt="{{ image.alt_text|default:product.name }}" aria-label="نمایش تصویر {{ forloop.counter }}">
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" loading="lazy">
+                                </button>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="product-detail-info">

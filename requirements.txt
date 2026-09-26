@@ -4,3 +4,4 @@ pillow==12.3.0
 sqlparse==0.6.0
 tzdata==2026.4
 gunicorn>=23,<24
+psycopg[binary]>=3.2,<4

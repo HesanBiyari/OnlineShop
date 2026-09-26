@@ -1409,3 +1409,19 @@ a {
         height: 64px;
     }
 }
+
+/* repair_onlineshop gallery */
+.product-gallery { min-width: 0; }
+.product-detail-image img, .product-thumbnail img { max-width: 100%; height: auto; object-fit: contain; }
+.product-thumbnails { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: .75rem; }
+.product-thumbnail { border: 1px solid transparent; background: transparent; padding: .15rem; border-radius: .5rem; cursor: pointer; }
+.product-thumbnail.is-active { border-color: currentColor; }
+.product-thumbnail img { display: block; width: 72px; height: 72px; border-radius: .4rem; }
+@media (max-width: 900px) { .shop-layout { grid-template-columns: 1fr; } }
+@media (max-width: 700px) {
+    .container { width: min(100% - 1.25rem, 1180px); }
+    .header-content, .shop-toolbar, .product-detail { flex-direction: column; align-items: stretch; }
+    .search-box { width: 100%; }
+    .products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) { .products-grid { grid-template-columns: 1fr; } .product-detail-image { min-height: 220px; } }

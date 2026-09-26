@@ -312,12 +312,23 @@ class DigitalCode(models.Model):
             models.Index(fields=("product", "variant", "is_used")),
             models.Index(fields=("order_item",)),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(is_used=False, used_at__isnull=True, order_item__isnull=True)
+                    | Q(is_used=True, used_at__isnull=False, order_item__isnull=False)
+                ),
+                name="digitalcode_usage_state_consistent",
+            ),
+        ]
 
     def clean(self):
         if self.variant and self.variant.product_id != self.product_id:
             raise ValidationError("Variant باید متعلق به همین محصول باشد.")
-        if self.is_used and self.order_item_id is None:
-            raise ValidationError("کد مصرف‌شده باید به یک آیتم سفارش متصل باشد.")
+        if self.is_used and (self.order_item_id is None or self.used_at is None):
+            raise ValidationError("کد مصرف‌شده باید زمان استفاده و آیتم سفارش داشته باشد.")
+        if not self.is_used and (self.order_item_id is not None or self.used_at is not None):
+            raise ValidationError("کد مصرف‌نشده نباید به سفارش یا زمان استفاده متصل باشد.")
 
     def __str__(self):
         return f"{self.product.name} - {self.code}"

@@ -7,7 +7,8 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Prefetch
+from django.db.models import Case, Exists, F, IntegerField, OuterRef, Prefetch, Q, Subquery, Value, When
+from django.db.models.functions import Cast, Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -53,7 +54,24 @@ def product_queryset():
 
 
 def home(request):
-    products = product_queryset().order_by("-created_at", "-id")
+    available_variant = ProductVariant.objects.filter(
+        product_id=OuterRef("pk"), is_active=True, stock__gt=0
+    )
+    any_active_variant = ProductVariant.objects.filter(
+        product_id=OuterRef("pk"), is_active=True
+    )
+    products = (
+        product_queryset()
+        .annotate(
+            has_available_variant=Exists(available_variant),
+            has_any_active_variant=Exists(any_active_variant),
+        )
+        .filter(
+            Q(has_available_variant=True)
+            | Q(has_any_active_variant=False, stock__gt=0)
+        )
+        .order_by("-created_at", "-id")
+    )
     featured_products = list(products.filter(active_discount_q())[:4])
     featured_ids = {product.id for product in featured_products}
 
@@ -90,11 +108,33 @@ def shop(request):
     if category_slug:
         products = products.filter(category__slug=category_slug)
 
+    if sort in {"price_low", "price_high"}:
+        variant_price = Subquery(
+            ProductVariant.objects.filter(
+                product_id=OuterRef("pk"), is_active=True
+            ).order_by("price", "id").values("price")[:1],
+            output_field=IntegerField(),
+        )
+        products = products.annotate(
+            _variant_price=variant_price,
+            _discount_percent=Case(
+                When(active_discount_q(), then=F("discount__percent")),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+        ).annotate(
+            _catalog_price_sort=Cast(
+                Coalesce(F("_variant_price"), F("price"))
+                * (Value(100) - F("_discount_percent"))
+                / Value(100),
+                IntegerField(),
+            )
+        )
+
     if sort == "price_low":
-        # Database-level sorting remains stable and pagination-safe.
-        products = products.order_by("price", "id")
+        products = products.order_by("_catalog_price_sort", "id")
     elif sort == "price_high":
-        products = products.order_by("-price", "-id")
+        products = products.order_by("-_catalog_price_sort", "-id")
     elif sort == "name":
         products = products.order_by("name", "id")
     else:
@@ -270,7 +310,10 @@ def get_cart_items(request, *, lock=False):
         variants_by_id = {
             variant.id: variant for variant in getattr(product, "cart_variants", [])
         }
+        has_active_variants = bool(getattr(product, "cart_variants", []))
         variant = variants_by_id.get(variant_id) if variant_id else None
+        if has_active_variants and variant is None:
+            continue
         if variant_id and not variant:
             continue
 
@@ -365,7 +408,15 @@ def update_cart(request):
 
     products = {
         product.id: product
-        for product in Product.objects.filter(id__in=set(product_ids)).select_related("discount")
+        for product in Product.objects.filter(id__in=set(product_ids))
+        .select_related("discount")
+        .prefetch_related(
+            Prefetch(
+                "variants",
+                queryset=ProductVariant.objects.filter(is_active=True),
+                to_attr="active_cart_variants",
+            )
+        )
     }
 
     for key, (product_id, variant_id) in parsed_keys.items():
@@ -379,11 +430,14 @@ def update_cart(request):
         if not product:
             continue
 
-        variant = None
-        if variant_id:
-            variant = product.variants.filter(pk=variant_id, is_active=True).first()
-            if not variant:
-                continue
+        active_variants = {
+            item.id: item for item in getattr(product, "active_cart_variants", [])
+        }
+        variant = active_variants.get(variant_id) if variant_id else None
+        if active_variants and variant is None:
+            continue
+        if variant_id and not variant:
+            continue
 
         stock = get_item_stock(product, variant)
         if quantity > 0 and stock > 0:
@@ -505,11 +559,16 @@ def payment_success(request, order_id):
                 product.save(update_fields=["stock"])
 
         now = timezone.now()
-        order.payment_ref = f"DEMO-{order.id}-{int(now.timestamp())}"
-        order.paid_at = now
+        if not order.payment_ref:
+            order.payment_ref = f"DEMO-{order.id}-{int(now.timestamp())}"
+        if not order.paid_at:
+            order.paid_at = now
+        order.status = "paid"
+        order.save(update_fields=["status", "payment_ref", "paid_at"])
+
         delivered = deliver_digital_codes(order)
         order.status = "completed" if delivered else "processing"
-        order.save(update_fields=["status", "payment_ref", "paid_at"])
+        order.save(update_fields=["status"])
 
     request.session["cart"] = {}
     request.session.modified = True

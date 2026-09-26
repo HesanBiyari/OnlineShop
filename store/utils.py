@@ -13,7 +13,7 @@ def get_item_stock(product, variant=None):
 
 
 def deliver_digital_codes(order):
-    """Assign unused digital codes to order items inside a transaction."""
+    """Assign unused digital codes idempotently and atomically."""
     all_delivered = True
 
     with transaction.atomic():
@@ -24,12 +24,12 @@ def deliver_digital_codes(order):
                 continue
 
             filters = {
-                "product": item.product,
+                "product_id": item.product_id,
                 "is_used": False,
                 "order_item__isnull": True,
             }
-            if item.variant:
-                filters["variant"] = item.variant
+            if item.variant_id:
+                filters["variant_id"] = item.variant_id
             else:
                 filters["variant__isnull"] = True
 
@@ -45,7 +45,7 @@ def deliver_digital_codes(order):
             for code in codes:
                 code.is_used = True
                 code.used_at = now
-                code.order_item = item
+                code.order_item_id = item.id
                 code.save(update_fields=["is_used", "used_at", "order_item"])
 
     return all_delivered

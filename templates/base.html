@@ -73,5 +73,19 @@
         <p>© 2026 Giftweb</p>
     </div>
 </footer>
+    <script>
+    document.addEventListener("click", function (event) {
+        const thumb = event.target.closest("[data-gallery-thumb]");
+        if (!thumb) return;
+        const gallery = thumb.closest("[data-product-gallery]");
+        const main = gallery && gallery.querySelector("[data-gallery-main]");
+        if (!main) return;
+        main.src = thumb.dataset.imageUrl;
+        main.alt = thumb.dataset.imageAlt || main.alt;
+        gallery.querySelectorAll("[data-gallery-thumb]").forEach(function (item) {
+            item.classList.toggle("is-active", item === thumb);
+        });
+    });
+    </script>
 </body>
 </html>
