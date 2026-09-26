@@ -1,32 +1,19 @@
 from django.contrib import admin
 
-from .models import (
-    Category,
-    DigitalCode,
-    Discount,
-    Order,
-    OrderItem,
-    Product,
-    ProductImage,
-    ProductVariant,
-)
-
+from .models import Category, DigitalCode, Discount, Order, OrderItem, Payment, Product, ProductImage, ProductVariant
 
 class ProductVariantInline(admin.TabularInline):
     model = ProductVariant
     extra = 1
 
-
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 1
-
 
 class DiscountInline(admin.StackedInline):
     model = Discount
     extra = 0
     max_num = 1
-
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -34,24 +21,36 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
 
-
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("name", "category", "price", "stock", "created_at")
+    list_display = ("name", "category", "catalog_price_admin", "catalog_stock_admin", "created_at")
     list_filter = ("category",)
     search_fields = ("name", "description")
     ordering = ("-created_at",)
-    list_select_related = ("category",)
+    list_select_related = ("category", "discount")
     inlines = [ProductVariantInline, ProductImageInline, DiscountInline]
 
+    @admin.display(description="قیمت نمایشی")
+    def catalog_price_admin(self, obj):
+        return f"{obj.catalog_price:,} تومان"
+
+    @admin.display(description="موجودی نمایشی")
+    def catalog_stock_admin(self, obj):
+        variants = obj._active_variant_list()
+        if variants:
+            return " | ".join(f"{v.name}: {v.stock}" for v in variants[:5])
+        return obj.stock
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ("name", "product", "price", "stock", "sku", "is_active")
-    list_filter = ("is_active",)
+    list_display = ("name", "product", "final_price_admin", "stock", "sku", "is_active")
+    list_filter = ("is_active", "product")
     search_fields = ("name", "sku", "product__name")
     list_select_related = ("product",)
 
+    @admin.display(description="قیمت نهایی")
+    def final_price_admin(self, obj):
+        return f"{obj.final_price:,} تومان"
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
@@ -60,14 +59,12 @@ class ProductImageAdmin(admin.ModelAdmin):
     search_fields = ("product__name",)
     list_select_related = ("product",)
 
-
 @admin.register(Discount)
 class DiscountAdmin(admin.ModelAdmin):
     list_display = ("product", "percent", "is_active", "starts_at", "ends_at")
     list_filter = ("is_active",)
     search_fields = ("product__name",)
     list_select_related = ("product",)
-
 
 @admin.register(DigitalCode)
 class DigitalCodeAdmin(admin.ModelAdmin):
@@ -77,35 +74,37 @@ class DigitalCodeAdmin(admin.ModelAdmin):
     list_select_related = ("product", "variant", "order_item")
     readonly_fields = ("used_at",)
 
-
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
     can_delete = False
-    readonly_fields = (
-        "product",
-        "variant",
-        "product_name",
-        "variant_name",
-        "quantity",
-        "unit_price",
-        "total_price",
-    )
-
+    readonly_fields = ("product", "variant", "product_name", "variant_name", "quantity", "unit_price", "total_price")
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "user",
-        "status",
-        "total_amount",
-        "payment_ref",
-        "created_at",
-        "paid_at",
-    )
+    list_display = ("id", "user", "phone_display", "status", "total_amount_display", "payment_ref", "created_at", "paid_at")
     list_filter = ("status", "created_at")
     search_fields = ("user__username", "email", "phone", "payment_ref")
     readonly_fields = ("created_at", "paid_at")
     list_select_related = ("user",)
     inlines = [OrderItemInline]
+
+    @admin.display(description="موبایل")
+    def phone_display(self, obj):
+        return obj.phone
+
+    @admin.display(description="مبلغ")
+    def total_amount_display(self, obj):
+        return f"{obj.total_amount:,} تومان"
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "gateway", "amount_display", "status", "authority", "reference_id", "created_at", "paid_at")
+    list_filter = ("gateway", "status", "created_at")
+    search_fields = ("authority", "reference_id", "order__id", "order__phone")
+    list_select_related = ("order",)
+    readonly_fields = ("created_at", "updated_at", "paid_at")
+
+    @admin.display(description="مبلغ")
+    def amount_display(self, obj):
+        return f"{obj.amount:,} تومان"

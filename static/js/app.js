@@ -32,3 +32,24 @@ document.addEventListener("DOMContentLoaded", () => {
     el.addEventListener("pointerleave", () => el.style.transform="");
   });
 });
+
+// Variant selector: keeps the existing Django add_to_cart POST contract while making
+// multi-option products explicit about price, stock and selection state.
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.querySelector("[data-buy-form]");
+  const selected = form?.querySelector("[data-selected-variant]");
+  const note = form?.querySelector("[data-selection-note]");
+  const priceValue = document.querySelector("[data-price-value]");
+  const qty = form?.querySelector("[name=quantity]");
+  document.querySelectorAll(".variant-option:not(:disabled)").forEach(btn => btn.addEventListener("click", () => {
+    document.querySelectorAll(".variant-option").forEach(x => x.classList.remove("is-selected"));
+    btn.classList.add("is-selected");
+    if (selected) selected.value = btn.dataset.variantId;
+    if (priceValue) priceValue.textContent = Number(btn.dataset.price).toLocaleString("fa-IR");
+    if (qty) { qty.max = btn.dataset.stock; if (Number(qty.value) > Number(btn.dataset.stock)) qty.value = btn.dataset.stock; }
+    if (note) { note.textContent = `${btn.querySelector("strong")?.textContent || "گزینه"} انتخاب شد — موجودی: ${Number(btn.dataset.stock).toLocaleString("fa-IR")}`; note.classList.add("is-ready"); }
+  }));
+  form?.addEventListener("submit", e => {
+    if (selected && !selected.value) { e.preventDefault(); note?.classList.add("is-error"); note.textContent = "اول یکی از مدل‌های موجود را انتخاب کن."; document.querySelector(".variant-option:not(:disabled)")?.focus(); }
+  });
+});

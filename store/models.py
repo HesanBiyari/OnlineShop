@@ -332,3 +332,37 @@ class DigitalCode(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.code}"
+
+class Payment(models.Model):
+    STATUS_CHOICES = [
+        ("created", "ایجاد شد"),
+        ("redirected", "ارسال به درگاه"),
+        ("verifying", "در حال تأیید"),
+        ("paid", "پرداخت موفق"),
+        ("failed", "ناموفق"),
+        ("canceled", "لغو شده"),
+    ]
+
+    order = models.OneToOneField(Order, on_delete=models.PROTECT, related_name="payment")
+    gateway = models.CharField(max_length=40, default="zarinpal")
+    amount = models.PositiveIntegerField()
+    currency = models.CharField(max_length=10, default="IRR")
+    authority = models.CharField(max_length=120, blank=True, null=True, unique=True)
+    reference_id = models.CharField(max_length=120, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="created")
+    gateway_code = models.CharField(max_length=30, blank=True)
+    gateway_message = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("status", "-created_at")),
+            models.Index(fields=("gateway", "authority")),
+        ]
+
+    def __str__(self):
+        return f"Payment #{self.id} - Order #{self.order_id}"
+

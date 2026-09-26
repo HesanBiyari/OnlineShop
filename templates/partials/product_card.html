@@ -11,7 +11,7 @@
     <h3><a href="{% url 'product_detail' product.pk %}">{{ product.name }}</a></h3>
     <div class="price-row">
       <div>{% if product.catalog_old_price %}<del>{{ product.catalog_old_price|floatformat:0 }}</del>{% endif %}<strong>{{ product.catalog_price|floatformat:0 }} <small>تومان</small></strong></div>
-      {% if product.catalog_has_stock %}<span class="stock-dot available">موجود</span>{% else %}<span class="stock-dot unavailable">ناموجود</span>{% endif %}
+      {% if product.active_variants %}<span class="variant-count">{{ product.active_variants|length }} گزینه</span>{% endif %}{% if product.catalog_has_stock %}<span class="stock-dot available">موجود</span>{% else %}<span class="stock-dot unavailable">ناموجود</span>{% endif %}
     </div>
     <a class="card-cta" href="{% url 'product_detail' product.pk %}">مشاهده محصول <span>←</span></a>
   </div>

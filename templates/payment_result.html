@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}نتیجه پرداخت | Giftweb{% endblock %}
+{% block content %}<section class="auth-page"><div class="auth-card payment-result {% if success %}is-success{% else %}is-failed{% endif %}"><div class="result-icon">{% if success %}✓{% else %}×{% endif %}</div><span class="eyebrow">پرداخت سفارش #{{ order.id }}</span><h1>{% if success %}پرداخت با موفقیت تأیید شد{% else %}پرداخت نهایی نشد{% endif %}</h1><p class="result-message">{{ message }}</p>{% if success %}<a class="btn btn-primary btn-wide" href="{% url 'login' %}?next={% url 'order_detail' order.id %}">مشاهده سفارش ←</a>{% else %}<a class="btn btn-primary btn-wide" href="{% url 'payment' order.id %}">تلاش دوباره</a>{% endif %}</div></section>{% endblock %}

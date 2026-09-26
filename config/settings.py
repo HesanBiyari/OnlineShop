@@ -26,6 +26,17 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
 
 
+# Optional local .env loader. Explicit environment variables always win.
+ENV_FILE = BASE_DIR / ".env"
+if ENV_FILE.exists():
+    for _line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _key, _value = _line.split("=", 1)
+        _value = _value.strip().strip('"').strip("'")
+        os.environ.setdefault(_key.strip(), _value)
+
 DEBUG = env_bool("DJANGO_DEBUG", True)
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
@@ -131,6 +142,11 @@ EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 
 LOGIN_URL = "/login/"
+PAYMENT_GATEWAY = os.getenv("PAYMENT_GATEWAY", "zarinpal").lower()
+ZARINPAL_MERCHANT_ID = os.getenv("ZARINPAL_MERCHANT_ID", "")
+ZARINPAL_SANDBOX = env_bool("ZARINPAL_SANDBOX", True)
+PAYMENT_CURRENCY = os.getenv("PAYMENT_CURRENCY", "IRR").upper()
+PAYMENT_TIMEOUT = int(os.getenv("PAYMENT_TIMEOUT", "15"))
 LOGIN_REDIRECT_URL = "/account/"
 LOGOUT_REDIRECT_URL = "/"
 

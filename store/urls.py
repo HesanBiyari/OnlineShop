@@ -1,25 +1,8 @@
 from django.urls import path
 
-from .views import (
-    account,
-    add_to_cart,
-    cart_view,
-    checkout,
-    clear_cart,
-    home,
-    login_view,
-    logout_view,
-    order_detail,
-    orders,
-    payment,
-    payment_success,
-    product_detail,
-    remove_from_cart,
-    shop,
-    signup_view,
-    update_cart,
-)
-
+from .views import account, add_to_cart, cart_view, checkout, clear_cart, home, logout_view, order_detail, orders, product_detail, remove_from_cart, shop, update_cart
+from .auth_flows import login_view, signup_view
+from .payment_flows import payment, payment_callback
 
 urlpatterns = [
     path("", home, name="home"),
@@ -36,7 +19,8 @@ urlpatterns = [
     path("cart/clear/", clear_cart, name="clear_cart"),
     path("checkout/", checkout, name="checkout"),
     path("payment/<int:order_id>/", payment, name="payment"),
-    path("payment/<int:order_id>/success/", payment_success, name="payment_success"),
+    path("payment/<int:order_id>/callback/", payment_callback, name="payment_callback"),
+    path("payment/<int:order_id>/success/", payment_callback, name="payment_success"),
     path("orders/", orders, name="orders"),
     path("orders/<int:order_id>/", order_detail, name="order_detail"),
 ]
