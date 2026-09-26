@@ -1,46 +1,6 @@
 {% extends "base.html" %}
 {% block title %}سبد خرید | Giftweb{% endblock %}
 {% block content %}
-<section class="cart-page">
-    <div class="container">
-        <div class="section-heading"><div><span class="section-label">خرید</span><h1>سبد خرید</h1></div></div>
-        {% if items %}
-            <form method="post" action="{% url 'update_cart' %}">
-                {% csrf_token %}
-                <div class="cart-list">
-                    {% for item in items %}
-                        <div class="cart-item">
-                            <a class="cart-item-image" href="{% url 'product_detail' item.product.id %}">
-                                {% if item.image %}<img src="{{ item.image.image.url }}" alt="{{ item.product.name }}">{% else %}<span class="product-placeholder">🎁</span>{% endif %}
-                            </a>
-                            <div>
-                                <a href="{% url 'product_detail' item.product.id %}"><strong>{{ item.product.name }}</strong></a>
-                                {% if item.variant %}<div>{{ item.variant.name }}</div>{% endif %}
-                                <div>{{ item.unit_price|floatformat:0 }} تومان برای هر عدد</div>
-                            </div>
-                            <div class="cart-item-quantity">
-                                <label for="quantity_{{ item.key }}">تعداد</label>
-                                <input id="quantity_{{ item.key }}" type="number" min="1" max="{{ item.stock }}" name="quantity_{{ item.key }}" value="{{ item.quantity }}">
-                            </div>
-                            <div class="cart-item-total"><strong>{{ item.total|floatformat:0 }} تومان</strong></div>
-                            <div>
-                                <button class="remove-link cart-remove-button" type="submit" formaction="{% url 'remove_from_cart' item.key %}">حذف</button>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                <div class="cart-summary">
-                    <strong>مجموع: {{ total|floatformat:0 }} تومان</strong>
-                    <div class="cart-actions">
-                        <button class="product-button" type="submit">به‌روزرسانی سبد</button>
-                        <button class="secondary-button" type="submit" formaction="{% url 'clear_cart' %}">خالی کردن سبد</button>
-                        <a class="product-button" href="{% url 'checkout' %}">ادامه به تسویه حساب</a>
-                    </div>
-                </div>
-            </form>
-        {% else %}
-            <div class="no-products"><h3>سبد خرید خالی است.</h3><a class="product-button" href="{% url 'shop' %}">رفتن به فروشگاه</a></div>
-        {% endif %}
-    </div>
-</section>
+<section class="page-hero"><div class="container"><span class="eyebrow">خرید</span><h1>سبد خرید</h1><p>قبل از ادامه، اقلام و تعداد را بررسی کن.</p></div></section>
+<section class="section"><div class="container">{% if items %}<form method="post" action="{% url 'update_cart' %}">{% csrf_token %}<div class="cart-layout"><div class="cart-list">{% for item in items %}<article class="cart-item glass"><a class="cart-media" href="{% url 'product_detail' item.product.id %}">{% if item.image %}<img src="{{ item.image.image.url }}" alt="{{ item.product.name }}">{% else %}<span>✦</span>{% endif %}</a><div class="cart-main"><a href="{% url 'product_detail' item.product.id %}"><h3>{{ item.product.name }}</h3></a>{% if item.variant %}<p>{{ item.variant.name }}</p>{% endif %}<span>{{ item.unit_price|floatformat:0 }} تومان</span></div><div class="qty-field"><label for="quantity_{{ item.key }}">تعداد</label><input id="quantity_{{ item.key }}" type="number" min="1" max="{{ item.stock }}" name="quantity_{{ item.key }}" value="{{ item.quantity }}"></div><strong class="cart-total">{{ item.total|floatformat:0 }} تومان</strong><button class="remove-link" type="submit" formaction="{% url 'remove_from_cart' item.key %}">حذف</button></article>{% endfor %}</div><aside class="summary-card"><span class="eyebrow">خلاصه</span><h2>جمع سفارش</h2><div class="summary-line"><span>مبلغ کل</span><strong>{{ total|floatformat:0 }} تومان</strong></div><button class="btn btn-secondary btn-wide" type="submit">به‌روزرسانی سبد</button><a class="btn btn-primary btn-wide" href="{% url 'checkout' %}">ادامه به تسویه حساب ←</a><button class="clear-button" type="submit" formaction="{% url 'clear_cart' %}">خالی کردن سبد</button></aside></div></form>{% else %}<div class="empty-state"><div>🛒</div><h2>سبدت هنوز خالیه</h2><p>از فروشگاه یک محصول انتخاب کن و برگرد.</p><a class="btn btn-primary" href="{% url 'shop' %}">رفتن به فروشگاه</a></div>{% endif %}</div></section>
 {% endblock %}

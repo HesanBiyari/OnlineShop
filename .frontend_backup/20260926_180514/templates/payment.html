@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}پرداخت | Giftweb{% endblock %}
+{% block content %}
+<section class="payment-page">
+    <div class="auth-card">
+        <div class="section-heading"><div><span class="section-label">سفارش #{{ order.id }}</span><h1>پرداخت</h1></div></div>
+        <p>مبلغ سفارش: <strong>{{ order.total_amount|floatformat:0 }} تومان</strong></p>
+        <div class="payment-demo-note">این پروژه در حال حاضر از پرداخت Demo/Local استفاده می‌کند. با دکمه زیر موفقیت پرداخت شبیه‌سازی می‌شود.</div>
+        <form method="post" action="{% url 'payment_success' order.id %}">
+            {% csrf_token %}
+            <button class="product-button" type="submit">تکمیل پرداخت آزمایشی</button>
+        </form>
+        <a class="secondary-button" href="{% url 'cart' %}">بازگشت به سبد</a>
+    </div>
+</section>
+{% endblock %}

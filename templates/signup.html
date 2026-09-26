@@ -1,16 +1,5 @@
 {% extends "base.html" %}
 {% block title %}ثبت‌نام | Giftweb{% endblock %}
 {% block content %}
-<section class="auth-page">
-    <div class="auth-card">
-        <div class="section-heading"><div><span class="section-label">شروع</span><h1>ساخت حساب</h1></div></div>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.non_field_errors }}
-            {{ form.as_p }}
-            <button class="product-button" type="submit">ثبت‌نام</button>
-        </form>
-        <p class="auth-switch">حساب دارید؟ <a href="{% url 'login' %}">وارد شوید</a></p>
-    </div>
-</section>
+<section class="auth-page"><div class="auth-visual"><span class="hero-kicker">شروع کن</span><h1>یک تجربه خرید<br><span>جدید بساز.</span></h1><p>حساب خودت را بساز و سفارش‌هایت را یکجا مدیریت کن.</p></div><div class="auth-card"><span class="eyebrow">حساب جدید</span><h2>ثبت‌نام</h2><p class="form-subtitle">چند ثانیه بیشتر طول نمی‌کشد.</p><form method="post" class="styled-form">{% csrf_token %}{{ form.non_field_errors }}{{ form.as_p }}<button class="btn btn-primary btn-wide" type="submit">ساخت حساب ←</button></form><p class="auth-switch">حساب داری؟ <a href="{% url 'login' %}">وارد شو</a></p></div></section>
 {% endblock %}

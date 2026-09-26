@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}حساب من | Giftweb{% endblock %}
+{% block content %}
+<section class="account-page">
+    <div class="container">
+        <div class="section-heading">
+            <div><span class="section-label">حساب کاربری</span><h1>سلام {{ user.username }}</h1></div>
+        </div>
+        <div class="account-actions">
+            <a class="product-button" href="{% url 'shop' %}">ادامه خرید</a>
+            <a class="secondary-button" href="{% url 'orders' %}">مشاهده همه سفارش‌ها</a>
+        </div>
+
+        <div class="section-heading"><div><span class="section-label">آخرین سفارش‌ها</span><h2>تاریخچه سفارش</h2></div></div>
+        <div class="orders-list">
+            {% for order in orders %}
+                <a class="order-card" href="{% url 'order_detail' order.id %}">
+                    <div><strong>#{{ order.id }}</strong><div>{{ order.created_at|date:"Y/m/d H:i" }}</div></div>
+                    <div>{{ order.get_status_display }}</div>
+                    <div>{{ order.total_amount|floatformat:0 }} تومان</div>
+                </a>
+            {% empty %}
+                <div class="no-products"><h3>سفارشی وجود ندارد.</h3><p>هنوز سفارشی ثبت نکرده‌اید.</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

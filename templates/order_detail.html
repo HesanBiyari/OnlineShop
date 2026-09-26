@@ -1,47 +1,6 @@
 {% extends "base.html" %}
 {% block title %}سفارش #{{ order.id }} | Giftweb{% endblock %}
 {% block content %}
-<section class="account-page">
-    <div class="container">
-        <div class="section-heading">
-            <div><span class="section-label">جزئیات سفارش</span><h1>سفارش #{{ order.id }}</h1></div>
-        </div>
-        <div class="order-detail-box">
-            <p>وضعیت: <strong>{{ order.get_status_display }}</strong></p>
-            <p>تاریخ ثبت: {{ order.created_at|date:"Y/m/d H:i" }}</p>
-            <p>مبلغ: <strong>{{ order.total_amount|floatformat:0 }} تومان</strong></p>
-            {% if order.payment_ref %}<p>شماره پرداخت: {{ order.payment_ref }}</p>{% endif %}
-        </div>
-
-        <div class="orders-list">
-            {% for item in order.items.all %}
-                <div class="order-item">
-                    <div>
-                        <strong>{{ item.product_name }}</strong>
-                        {% if item.variant_name %}<div>{{ item.variant_name }}</div>{% endif %}
-                        <div>{{ item.quantity }} × {{ item.unit_price|floatformat:0 }} تومان</div>
-                    </div>
-                    <strong>{{ item.total_price|floatformat:0 }} تومان</strong>
-                </div>
-                {% with delivered_codes=item.digital_codes.all %}
-                    {% if delivered_codes %}
-                        <div class="digital-delivery">
-                            <strong>کدهای تحویل‌شده</strong>
-                            {% for code in delivered_codes %}
-                                <div class="digital-code">
-                                    <span>{{ code.code }}</span>
-                                    {% if code.pin %}<span>PIN: {{ code.pin }}</span>{% endif %}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                {% endwith %}
-            {% endfor %}
-        </div>
-        <div class="account-actions">
-            <a class="product-button" href="{% url 'shop' %}">بازگشت به فروشگاه</a>
-            <a class="secondary-button" href="{% url 'orders' %}">همه سفارش‌ها</a>
-        </div>
-    </div>
-</section>
+<section class="page-hero"><div class="container"><span class="eyebrow">جزئیات سفارش</span><h1>سفارش #{{ order.id }}</h1><p>{{ order.created_at|date:"Y/m/d H:i" }}</p></div></section>
+<section class="section"><div class="container order-detail-layout"><div><div class="order-meta glass"><div><small>وضعیت</small><strong>{{ order.get_status_display }}</strong></div><div><small>مبلغ</small><strong>{{ order.total_amount|floatformat:0 }} تومان</strong></div>{% if order.payment_ref %}<div><small>شماره پرداخت</small><strong>{{ order.payment_ref }}</strong></div>{% endif %}</div><div class="order-items">{% for item in order.items.all %}<article class="order-item glass"><div><h3>{{ item.product_name }}</h3>{% if item.variant_name %}<p>{{ item.variant_name }}</p>{% endif %}<small>{{ item.quantity }} × {{ item.unit_price|floatformat:0 }} تومان</small></div><strong>{{ item.total_price|floatformat:0 }} تومان</strong></article>{% with delivered_codes=item.digital_codes.all %}{% if delivered_codes %}<div class="digital-delivery"><div><span class="eyebrow">تحویل دیجیتال</span><h3>کدهای شما</h3></div>{% for code in delivered_codes %}<div class="digital-code"><code>{{ code.code }}</code>{% if code.pin %}<span>PIN: {{ code.pin }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}{% endwith %}{% endfor %}</div></div><aside class="summary-card"><span class="eyebrow">دسترسی سریع</span><h2>ادامه</h2><a class="btn btn-primary btn-wide" href="{% url 'shop' %}">خرید بیشتر</a><a class="btn btn-secondary btn-wide" href="{% url 'orders' %}">همه سفارش‌ها</a></aside></div></section>
 {% endblock %}

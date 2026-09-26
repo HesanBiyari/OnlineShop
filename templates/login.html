@@ -1,17 +1,5 @@
 {% extends "base.html" %}
 {% block title %}ورود | Giftweb{% endblock %}
 {% block content %}
-<section class="auth-page">
-    <div class="auth-card">
-        <div class="section-heading"><div><span class="section-label">حساب کاربری</span><h1>ورود</h1></div></div>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.non_field_errors }}
-            {{ form.as_p }}
-            <input type="hidden" name="next" value="{{ next }}">
-            <button class="product-button" type="submit">ورود</button>
-        </form>
-        <p class="auth-switch">حساب ندارید؟ <a href="{% url 'signup' %}">ثبت‌نام کنید</a></p>
-    </div>
-</section>
+<section class="auth-page"><div class="auth-visual"><span class="hero-kicker">خوش برگشتی</span><h1>دسترسی به خریدهای<br><span>دیجیتال تو.</span></h1><p>وارد حساب شو تا سفارش‌ها و کدهای دیجیتال را مدیریت کنی.</p></div><div class="auth-card"><span class="eyebrow">حساب کاربری</span><h2>ورود</h2><p class="form-subtitle">اطلاعات حساب خودت را وارد کن.</p><form method="post" class="styled-form">{% csrf_token %}{{ form.non_field_errors }}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button class="btn btn-primary btn-wide" type="submit">ورود به حساب ←</button></form><p class="auth-switch">حساب نداری؟ <a href="{% url 'signup' %}">ثبت‌نام کن</a></p></div></section>
 {% endblock %}

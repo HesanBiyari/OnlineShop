@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}سفارش #{{ order.id }} | Giftweb{% endblock %}
+{% block content %}
+<section class="account-page">
+    <div class="container">
+        <div class="section-heading">
+            <div><span class="section-label">جزئیات سفارش</span><h1>سفارش #{{ order.id }}</h1></div>
+        </div>
+        <div class="order-detail-box">
+            <p>وضعیت: <strong>{{ order.get_status_display }}</strong></p>
+            <p>تاریخ ثبت: {{ order.created_at|date:"Y/m/d H:i" }}</p>
+            <p>مبلغ: <strong>{{ order.total_amount|floatformat:0 }} تومان</strong></p>
+            {% if order.payment_ref %}<p>شماره پرداخت: {{ order.payment_ref }}</p>{% endif %}
+        </div>
+
+        <div class="orders-list">
+            {% for item in order.items.all %}
+                <div class="order-item">
+                    <div>
+                        <strong>{{ item.product_name }}</strong>
+                        {% if item.variant_name %}<div>{{ item.variant_name }}</div>{% endif %}
+                        <div>{{ item.quantity }} × {{ item.unit_price|floatformat:0 }} تومان</div>
+                    </div>
+                    <strong>{{ item.total_price|floatformat:0 }} تومان</strong>
+                </div>
+                {% with delivered_codes=item.digital_codes.all %}
+                    {% if delivered_codes %}
+                        <div class="digital-delivery">
+                            <strong>کدهای تحویل‌شده</strong>
+                            {% for code in delivered_codes %}
+                                <div class="digital-code">
+                                    <span>{{ code.code }}</span>
+                                    {% if code.pin %}<span>PIN: {{ code.pin }}</span>{% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+        </div>
+        <div class="account-actions">
+            <a class="product-button" href="{% url 'shop' %}">بازگشت به فروشگاه</a>
+            <a class="secondary-button" href="{% url 'orders' %}">همه سفارش‌ها</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

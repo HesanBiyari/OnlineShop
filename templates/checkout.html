@@ -1,29 +1,6 @@
 {% extends "base.html" %}
 {% block title %}تسویه حساب | Giftweb{% endblock %}
 {% block content %}
-<section class="checkout-page">
-    <div class="container">
-        <div class="section-heading"><div><span class="section-label">نهایی‌سازی</span><h1>تسویه حساب</h1></div></div>
-        <div class="checkout-layout">
-            <div class="checkout-form-card">
-                <form method="post">
-                    {% csrf_token %}
-                    {{ form.non_field_errors }}
-                    {{ form.as_p }}
-                    <button class="product-button" type="submit">ثبت سفارش</button>
-                </form>
-            </div>
-            <div class="checkout-summary">
-                <h2>خلاصه سفارش</h2>
-                {% for item in items %}
-                    <div class="checkout-item">
-                        <span>{{ item.product.name }}{% if item.variant %} - {{ item.variant.name }}{% endif %} × {{ item.quantity }}</span>
-                        <strong>{{ item.total|floatformat:0 }} تومان</strong>
-                    </div>
-                {% endfor %}
-                <div class="cart-summary"><strong>مجموع: {{ total|floatformat:0 }} تومان</strong></div>
-            </div>
-        </div>
-    </div>
-</section>
+<section class="page-hero"><div class="container"><span class="eyebrow">مرحله نهایی</span><h1>تسویه حساب</h1><p>اطلاعات را وارد کن تا سفارش ثبت شود.</p></div></section>
+<section class="section"><div class="container checkout-layout"><div class="checkout-card"><div class="checkout-steps"><span class="active">۱ اطلاعات</span><span>۲ ثبت سفارش</span><span>۳ پرداخت</span></div><form method="post" class="styled-form">{% csrf_token %}{{ form.non_field_errors }}{{ form.as_p }}<button class="btn btn-primary btn-wide" type="submit">ثبت سفارش و ادامه ←</button></form></div><aside class="summary-card"><span class="eyebrow">سفارش</span><h2>خلاصه خرید</h2>{% for item in items %}<div class="summary-product"><span>{{ item.product.name }}{% if item.variant %} — {{ item.variant.name }}{% endif %} × {{ item.quantity }}</span><strong>{{ item.total|floatformat:0 }}</strong></div>{% endfor %}<div class="summary-line total"><span>مجموع</span><strong>{{ total|floatformat:0 }} تومان</strong></div></aside></div></section>
 {% endblock %}

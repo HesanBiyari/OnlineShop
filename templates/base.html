@@ -1,91 +1,78 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Giftweb{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090b12">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}Giftweb{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}فروشگاه حرفه‌ای محصولات دیجیتال و گیفت کارت{% endblock %}">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
-<header class="site-header">
-    <div class="container header-content">
-        <a href="{% url 'home' %}" class="logo">Giftweb</a>
-        <form class="search-box" action="{% url 'shop' %}" method="get">
-            <input type="text" name="q" value="{{ request.GET.q }}" placeholder="جستجوی محصول...">
-            <button type="submit">جستجو</button>
-        </form>
-        <div class="header-actions">
-            {% if user.is_authenticated %}
-                <a href="{% url 'account' %}">حساب من</a>
-                <a href="{% url 'orders' %}">سفارش‌ها</a>
-                <form method="post" action="{% url 'logout' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="header-button">خروج</button>
-                </form>
-            {% else %}
-                <a href="{% url 'login' %}">ورود</a>
-                <a href="{% url 'signup' %}">ثبت‌نام</a>
-            {% endif %}
-            <a href="{% url 'cart' %}">سبد خرید{% if cart_count %} ({{ cart_count }}){% endif %}</a>
-        </div>
-    </div>
-</header>
-<nav class="navbar">
-    <div class="container">
-        <div class="nav-links">
-            <a href="{% url 'home' %}">خانه</a>
-            <a href="{% url 'shop' %}">فروشگاه</a>
-            <a href="{% url 'shop' %}">گیفت کارت</a>
-            <a href="{% url 'shop' %}">دسته‌بندی‌ها</a>
-        </div>
-    </div>
-</nav>
-{% if messages %}
-    <div class="messages container">
-        {% for message in messages %}
-            <div class="message {{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    </div>
-{% endif %}
+<body class="app-shell">
+  <div class="noise" aria-hidden="true"></div>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
 
-<main>{% block content %}{% endblock %}</main>
-<footer class="site-footer">
-    <div class="container footer-content">
-        <div>
-            <h3>Giftweb</h3>
-            <p>فروشگاه محصولات دیجیتال</p>
-        </div>
-        <div>
-            <h4>دسترسی سریع</h4>
-            <a href="{% url 'home' %}">خانه</a>
-            <a href="{% url 'shop' %}">فروشگاه</a>
-            <a href="{% url 'account' %}">حساب کاربری</a>
-        </div>
-        <div>
-            <h4>راهنما</h4>
-            <a href="{% url 'shop' %}">محصولات</a>
-            <a href="{% url 'cart' %}">سبد خرید</a>
-            {% if user.is_authenticated %}<a href="{% url 'orders' %}">سفارش‌های من</a>{% endif %}
-        </div>
+  <header class="site-header">
+    <div class="announcement"><div class="container announcement-inner"><span>⚡ تحویل دیجیتال سریع</span><span>خرید امن و قابل پیگیری</span><span>پشتیبانی سفارش</span></div></div>
+    <div class="container header-main">
+      <a class="brand" href="{% url 'home' %}" aria-label="Giftweb">
+        <span class="brand-mark">G</span><span class="brand-text">Giftweb</span>
+      </a>
+      <form class="global-search" action="{% url 'shop' %}" method="get" role="search">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input name="q" value="{{ request.GET.q }}" placeholder="محصول، گیفت کارت یا دسته‌بندی..." autocomplete="off">
+        <button type="submit">جستجو</button>
+      </form>
+      <div class="header-actions">
+        {% if user.is_authenticated %}
+          <a class="icon-action" href="{% url 'account' %}"><span>◉</span><b>حساب</b></a>
+        {% else %}
+          <a class="icon-action" href="{% url 'login' %}"><span>◉</span><b>ورود</b></a>
+        {% endif %}
+        <a class="cart-action" href="{% url 'cart' %}"><span>🛒</span><b>سبد</b>{% if cart_count %}<em>{{ cart_count }}</em>{% endif %}</a>
+      </div>
     </div>
-    <div class="footer-bottom">
-        <p>© 2026 Giftweb</p>
+    <nav class="nav-wrap">
+      <div class="container nav-inner">
+        <a class="nav-link is-active" href="{% url 'home' %}">خانه</a>
+        <a class="nav-link" href="{% url 'shop' %}">فروشگاه</a>
+        <a class="nav-link" href="{% url 'shop' %}">گیفت کارت</a>
+        <a class="nav-link" href="{% url 'shop' %}">دسته‌بندی‌ها</a>
+        {% if user.is_authenticated %}<a class="nav-link" href="{% url 'orders' %}">سفارش‌های من</a>{% endif %}
+      </div>
+    </nav>
+  </header>
+
+  {% if messages %}
+  <div class="container message-stack">
+    {% for message in messages %}
+      <div class="toast toast-{{ message.tags|default:'info' }}" role="status"><span>{{ message }}</span><button type="button" data-dismiss-toast aria-label="بستن">×</button></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <main class="page-content">{% block content %}{% endblock %}</main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div><a class="brand footer-brand" href="{% url 'home' %}"><span class="brand-mark">G</span><span class="brand-text">Giftweb</span></a><p>فروشگاه محصولات دیجیتال با تجربه خرید سریع، شفاف و حرفه‌ای.</p></div>
+      <div><h3>دسترسی سریع</h3><a href="{% url 'home' %}">خانه</a><a href="{% url 'shop' %}">فروشگاه</a>{% if user.is_authenticated %}<a href="{% url 'orders' %}">سفارش‌ها</a>{% endif %}</div>
+      <div><h3>خرید</h3><a href="{% url 'shop' %}">همه محصولات</a><a href="{% url 'cart' %}">سبد خرید</a><a href="{% url 'shop' %}">دسته‌بندی‌ها</a></div>
+      <div><h3>اعتماد</h3><p>پرداخت امن، حساب کاربری و نمایش کدهای دیجیتال در جزئیات سفارش.</p></div>
     </div>
-</footer>
-    <script>
-    document.addEventListener("click", function (event) {
-        const thumb = event.target.closest("[data-gallery-thumb]");
-        if (!thumb) return;
-        const gallery = thumb.closest("[data-product-gallery]");
-        const main = gallery && gallery.querySelector("[data-gallery-main]");
-        if (!main) return;
-        main.src = thumb.dataset.imageUrl;
-        main.alt = thumb.dataset.imageAlt || main.alt;
-        gallery.querySelectorAll("[data-gallery-thumb]").forEach(function (item) {
-            item.classList.toggle("is-active", item === thumb);
-        });
-    });
-    </script>
+    <div class="container footer-bottom"><span>© 2026 Giftweb</span><span>ساخته‌شده برای تجربه‌ای سریع و ساده</span></div>
+  </footer>
+
+  <nav class="mobile-bottom-nav" aria-label="ناوبری موبایل">
+    <a href="{% url 'home' %}">⌂<span>خانه</span></a><a href="{% url 'shop' %}">⌕<span>فروشگاه</span></a><a href="{% url 'cart' %}">🛒<span>سبد</span></a>
+    {% if user.is_authenticated %}<a href="{% url 'account' %}">◉<span>حساب</span></a>{% else %}<a href="{% url 'login' %}">◉<span>ورود</span></a>{% endif %}
+  </nav>
+
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

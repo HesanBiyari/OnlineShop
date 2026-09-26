@@ -1,16 +1,5 @@
 {% extends "base.html" %}
-{% block title %}پرداخت | Giftweb{% endblock %}
+{% block title %}پرداخت سفارش #{{ order.id }} | Giftweb{% endblock %}
 {% block content %}
-<section class="payment-page">
-    <div class="auth-card">
-        <div class="section-heading"><div><span class="section-label">سفارش #{{ order.id }}</span><h1>پرداخت</h1></div></div>
-        <p>مبلغ سفارش: <strong>{{ order.total_amount|floatformat:0 }} تومان</strong></p>
-        <div class="payment-demo-note">این پروژه در حال حاضر از پرداخت Demo/Local استفاده می‌کند. با دکمه زیر موفقیت پرداخت شبیه‌سازی می‌شود.</div>
-        <form method="post" action="{% url 'payment_success' order.id %}">
-            {% csrf_token %}
-            <button class="product-button" type="submit">تکمیل پرداخت آزمایشی</button>
-        </form>
-        <a class="secondary-button" href="{% url 'cart' %}">بازگشت به سبد</a>
-    </div>
-</section>
+<section class="auth-page"><div class="auth-card payment-card"><span class="eyebrow">سفارش #{{ order.id }}</span><h1>پرداخت</h1><div class="payment-amount"><small>مبلغ سفارش</small><strong>{{ order.total_amount|floatformat:0 }} تومان</strong></div><div class="notice">این پروژه در حال حاضر از پرداخت Demo/Local استفاده می‌کند و موفقیت پرداخت با دکمه زیر شبیه‌سازی می‌شود.</div><form method="post" action="{% url 'payment_success' order.id %}">{% csrf_token %}<button class="btn btn-primary btn-wide" type="submit">تکمیل پرداخت آزمایشی ←</button></form><a class="btn btn-secondary btn-wide" href="{% url 'cart' %}">بازگشت به سبد</a></div></section>
 {% endblock %}

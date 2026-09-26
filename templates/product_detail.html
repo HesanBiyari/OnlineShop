@@ -1,95 +1,13 @@
 {% extends "base.html" %}
-
 {% block title %}{{ product.name }} | Giftweb{% endblock %}
 {% block content %}
-<section class="product-detail-page">
-    <div class="container">
-        <div class="product-detail">
-            <div>
-                <div class="product-gallery" data-product-gallery>
-                    <div class="product-detail-image">
-                        {% with image=product.display_images|first %}
-                            {% if image %}
-                                <img data-gallery-main src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
-                            {% else %}
-                                <div class="product-placeholder">🎁</div>
-                            {% endif %}
-                        {% endwith %}
-                    </div>
-                    {% if product.display_images %}
-                        <div class="product-thumbnails" role="list">
-                            {% for image in product.display_images %}
-                                <button type="button" class="product-thumbnail{% if forloop.first %} is-active{% endif %}" data-gallery-thumb data-image-url="{{ image.image.url }}" data-image-alt="{{ image.alt_text|default:product.name }}" aria-label="نمایش تصویر {{ forloop.counter }}">
-                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" loading="lazy">
-                                </button>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="product-detail-info">
-                {% if product.category %}<div class="product-category">{{ product.category.name }}</div>{% endif %}
-                <h1>{{ product.name }}</h1>
-                <div class="product-description">{{ product.description|linebreaksbr }}</div>
-
-                <div class="product-detail-price">
-                    {% if variants %}
-                        {% if product.catalog_old_price %}<span class="old-price">{{ product.catalog_old_price|floatformat:0 }} تومان</span>{% endif %}
-                        <strong>شروع از {{ product.catalog_price|floatformat:0 }} تومان</strong>
-                    {% else %}
-                        {% if product.catalog_old_price %}<span class="old-price">{{ product.catalog_old_price|floatformat:0 }} تومان</span>{% endif %}
-                        <strong>{{ product.catalog_price|floatformat:0 }} تومان</strong>
-                    {% endif %}
-                </div>
-
-                {% if variants %}
-                    {% if product.catalog_has_stock %}
-                        <span class="stock-status available">گزینه موردنظر را انتخاب کنید.</span>
-                    {% else %}
-                        <span class="stock-status unavailable">همه گزینه‌ها ناموجود هستند.</span>
-                    {% endif %}
-                {% elif product.stock > 0 %}
-                    <span class="stock-status available">موجود</span>
-                {% else %}
-                    <span class="stock-status unavailable">ناموجود</span>
-                {% endif %}
-
-                <form class="product-buy-form" method="post" action="{% url 'add_to_cart' product.pk %}">
-                    {% csrf_token %}
-                    {% if variants %}
-                        <div class="variant-selection">
-                            <label for="variant_id">گزینه محصول</label>
-                            <select id="variant_id" name="variant_id" required>
-                                <option value="">انتخاب کنید</option>
-                                {% for variant in variants %}
-                                    <option value="{{ variant.id }}" {% if not variant.stock %}disabled{% endif %}>
-                                        {{ variant.name }} — {{ variant.final_price|floatformat:0 }} تومان{% if variant.stock %} ({{ variant.stock }} موجود){% else %} (ناموجود){% endif %}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    {% endif %}
-
-                    <div class="quantity-row">
-                        <label for="quantity">تعداد</label>
-                        <input id="quantity" type="number" name="quantity" value="1" min="1" inputmode="numeric">
-                    </div>
-                    <button class="product-button" type="submit" {% if not product.catalog_has_stock %}disabled{% endif %}>افزودن به سبد</button>
-                </form>
-            </div>
-        </div>
-
-        {% if related_products %}
-            <div class="related-products">
-                <div class="section-heading"><div><span class="section-label">پیشنهادها</span><h2>محصولات مرتبط</h2></div></div>
-                <div class="products-grid">
-                    {% for related in related_products %}
-                        {% include "partials/product_card.html" with product=related %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-    </div>
-</section>
+<section class="section product-page"><div class="container"><div class="product-detail-grid">
+  <div class="gallery-card" data-product-gallery><div class="product-main-media">{% with image=product.display_images|first %}{% if image %}<img data-gallery-main src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">{% else %}<div class="product-placeholder">✦</div>{% endif %}{% endwith %}</div>{% if product.display_images %}<div class="product-thumbnails">{% for image in product.display_images %}<button type="button" class="product-thumbnail{% if forloop.first %} is-active{% endif %}" data-gallery-thumb data-image-url="{{ image.image.url }}" data-image-alt="{{ image.alt_text|default:product.name }}"><img src="{{ image.image.url }}" alt="" loading="lazy"></button>{% endfor %}</div>{% endif %}</div>
+  <div class="product-info-panel">{% if product.category %}<span class="eyebrow">{{ product.category.name }}</span>{% endif %}<h1>{{ product.name }}</h1><div class="product-description">{{ product.description|linebreaksbr }}</div>
+    <div class="detail-price">{% if product.catalog_old_price %}<del>{{ product.catalog_old_price|floatformat:0 }} تومان</del>{% endif %}<strong>{% if variants %}شروع از {% endif %}{{ product.catalog_price|floatformat:0 }} <small>تومان</small></strong></div>
+    {% if variants %}{% if product.catalog_has_stock %}<div class="availability available">● گزینه‌های موجود را انتخاب کنید</div>{% else %}<div class="availability unavailable">● همه گزینه‌ها ناموجود هستند</div>{% endif %}{% elif product.stock > 0 %}<div class="availability available">● موجود</div>{% else %}<div class="availability unavailable">● ناموجود</div>{% endif %}
+    <form class="buy-form" method="post" action="{% url 'add_to_cart' product.pk %}">{% csrf_token %}{% if variants %}<label for="variant_id">گزینه محصول</label><select id="variant_id" name="variant_id" required><option value="">انتخاب کنید</option>{% for variant in variants %}<option value="{{ variant.id }}" {% if not variant.stock %}disabled{% endif %}>{{ variant.name }} — {{ variant.final_price|floatformat:0 }} تومان{% if variant.stock %} ({{ variant.stock }} موجود){% else %} (ناموجود){% endif %}</option>{% endfor %}</select>{% endif %}<div class="qty-field"><label for="quantity">تعداد</label><input id="quantity" type="number" name="quantity" value="1" min="1" inputmode="numeric"></div><button class="btn btn-primary btn-wide" type="submit" {% if not product.catalog_has_stock %}disabled{% endif %}>افزودن به سبد <span>←</span></button></form>
+    <div class="mini-trust"><span>🔒 خرید امن</span><span>⚡ تحویل دیجیتال</span><span>↗ قابل پیگیری</span></div>
+  </div>
+</div>{% if related_products %}<div class="related"><div class="section-head"><div><span class="eyebrow">پیشنهاد مرتبط</span><h2>محصولات مشابه</h2></div></div><div class="product-grid">{% for related in related_products %}{% include "partials/product_card.html" with product=related %}{% endfor %}</div></div>{% endif %}</div></section>
 {% endblock %}

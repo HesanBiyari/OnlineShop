@@ -1,112 +1,33 @@
 {% extends "base.html" %}
-
 {% block title %}Giftweb | فروشگاه محصولات دیجیتال{% endblock %}
 {% block content %}
 <section class="hero">
-    <div class="container hero-content">
-        <div class="hero-text">
-            <span class="hero-badge">فروشگاه محصولات دیجیتال</span>
-            <h1>خرید سریع و مطمئن <span>گیفت کارت</span></h1>
-            <p>محصولات دیجیتال را انتخاب کنید، سفارش دهید و در صورت آماده بودن کد، آن را در حساب کاربری خود دریافت کنید.</p>
-            <div class="hero-buttons">
-                <a href="{% url 'shop' %}" class="btn btn-primary">مشاهده فروشگاه</a>
-                {% if not user.is_authenticated %}
-                    <a href="{% url 'signup' %}" class="btn btn-secondary">ساخت حساب</a>
-                {% endif %}
-            </div>
-        </div>
-        <div class="hero-card">
-            <div class="hero-card-icon">🎁</div>
-            <h3>تحویل دیجیتال</h3>
-            <p>کدهای موجود پس از تکمیل سفارش در جزئیات سفارش نمایش داده می‌شوند.</p>
-        </div>
+  <div class="container hero-grid">
+    <div class="hero-copy reveal">
+      <span class="hero-kicker">فروشگاه دیجیتال نسل جدید</span>
+      <h1>خرید دیجیتال،<br><span>سریع‌تر و مطمئن‌تر.</span></h1>
+      <p>گیفت کارت و محصولات دیجیتال را پیدا کن، انتخاب کن و سفارش بده؛ همه‌چیز با یک تجربه ساده و شفاف.</p>
+      <div class="hero-actions"><a class="btn btn-primary" href="{% url 'shop' %}">مشاهده فروشگاه <span>←</span></a>{% if not user.is_authenticated %}<a class="btn btn-ghost" href="{% url 'signup' %}">ساخت حساب</a>{% endif %}</div>
+      <div class="hero-proof"><span>✓ خرید قابل پیگیری</span><span>✓ تحویل دیجیتال</span><span>✓ تجربه امن</span></div>
     </div>
+    <div class="hero-visual reveal" data-parallax>
+      <div class="orb orb-one"></div><div class="orb orb-two"></div>
+      <div class="hero-product-card"><div class="floating-icon">✦</div><span>Digital Store</span><strong>همین حالا شروع کن</strong><a href="{% url 'shop' %}">انتخاب محصول ←</a></div>
+      <div class="floating-stat stat-a"><b>⚡</b><span>فرآیند سریع</span></div>
+      <div class="floating-stat stat-b"><b>🔒</b><span>خرید امن</span></div>
+    </div>
+  </div>
 </section>
 
-{% if categories %}
-<section class="section">
-    <div class="container">
-        <div class="section-heading">
-            <div><span class="section-label">دسته‌بندی‌ها</span><h2>محصولات بر اساس دسته</h2></div>
-            <a class="view-all" href="{% url 'shop' %}">همه محصولات</a>
-        </div>
-        <div class="categories-grid">
-            {% for category in categories %}
-                <a class="category-card" href="{% url 'shop' %}?category={{ category.slug }}">
-                    <div class="category-icon">🎮</div>
-                    <h3>{{ category.name }}</h3>
-                    <span>مشاهده محصولات</span>
-                </a>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-{% endif %}
+{% if categories %}<section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">دسته‌بندی‌ها</span><h2>چیزی که می‌خواهی را سریع پیدا کن</h2></div><a class="text-link" href="{% url 'shop' %}">همه محصولات ←</a></div><div class="category-grid">{% for category in categories %}<a class="category-card reveal" href="{% url 'shop' %}?category={{ category.slug }}"><span class="category-icon">✦</span><strong>{{ category.name }}</strong><small>مشاهده محصولات ←</small></a>{% endfor %}</div></div></section>{% endif %}
 
-{% if featured_products %}
-<section class="section products-section">
-    <div class="container">
-        <div class="section-heading">
-            <div><span class="section-label">پیشنهادها</span><h2>محصولات ویژه</h2></div>
-            <a class="view-all" href="{% url 'shop' %}">مشاهده همه</a>
-        </div>
-        <div class="products-grid">
-            {% for product in featured_products %}
-                {% include "partials/product_card.html" with product=product %}
-            {% endfor %}
-        </div>
-    </div>
-</section>
-{% endif %}
+{% if featured_products %}<section class="section section-soft"><div class="container"><div class="section-head"><div><span class="eyebrow">منتخب فروشگاه</span><h2>محصولات ویژه</h2></div><a class="text-link" href="{% url 'shop' %}">مشاهده همه ←</a></div><div class="product-grid">{% for product in featured_products %}{% include "partials/product_card.html" with product=product %}{% endfor %}</div></div></section>{% endif %}
 
-{% if new_products %}
-<section class="section">
-    <div class="container">
-        <div class="section-heading">
-            <div><span class="section-label">تازه‌ها</span><h2>جدیدترین محصولات</h2></div>
-            <a class="view-all" href="{% url 'shop' %}?sort=newest">مشاهده همه</a>
-        </div>
-        <div class="products-grid">
-            {% for product in new_products %}
-                {% include "partials/product_card.html" with product=product %}
-            {% endfor %}
-        </div>
-    </div>
-</section>
-{% endif %}
+<section class="trust-strip"><div class="container trust-grid"><div><b>⚡</b><span><strong>سریع</strong>فرآیند خرید بدون پیچیدگی</span></div><div><b>🔒</b><span><strong>امن</strong>حفاظت از حساب و فرم‌ها</span></div><div><b>◈</b><span><strong>دیجیتال</strong>نمایش کد در سفارش</span></div><div><b>↗</b><span><strong>قابل پیگیری</strong>تاریخچه سفارش‌ها</span></div></div></section>
 
-<section class="benefits-section">
-    <div class="container">
-        <div class="section-heading centered"><div><span class="section-label">چرا Giftweb؟</span><h2>یک خرید ساده و شفاف</h2></div></div>
-        <div class="benefits-grid">
-            <div class="benefit-card"><div class="benefit-icon">⚡</div><h3>سریع</h3><p>فرآیند سفارش بدون مراحل اضافی طراحی شده است.</p></div>
-            <div class="benefit-card"><div class="benefit-icon">🔒</div><h3>امن</h3><p>حساب کاربری و عملیات حساس با احراز هویت و CSRF محافظت می‌شوند.</p></div>
-            <div class="benefit-card"><div class="benefit-icon">📦</div><h3>دیجیتال</h3><p>کدهای آماده در جزئیات سفارش نمایش داده می‌شوند.</p></div>
-            <div class="benefit-card"><div class="benefit-icon">🧾</div><h3>قابل پیگیری</h3><p>سفارش‌های قبلی در حساب کاربری شما قابل مشاهده‌اند.</p></div>
-        </div>
-    </div>
-</section>
+{% if new_products %}<section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">تازه واردها</span><h2>جدیدترین محصولات</h2></div><a class="text-link" href="{% url 'shop' %}?sort=newest">مشاهده همه ←</a></div><div class="product-grid">{% for product in new_products %}{% include "partials/product_card.html" with product=product %}{% endfor %}</div></div></section>{% endif %}
 
-<section class="section">
-    <div class="container">
-        <div class="section-heading centered"><div><span class="section-label">روند خرید</span><h2>چطور سفارش بدهیم؟</h2></div></div>
-        <div class="steps-grid">
-            <div class="step-card"><div class="step-number">۱</div><h3>انتخاب محصول</h3><p>محصول و در صورت وجود، variant موردنظر را انتخاب کنید.</p></div>
-            <div class="step-card"><div class="step-number">۲</div><h3>سبد خرید</h3><p>تعداد و موجودی را بررسی و سبد را نهایی کنید.</p></div>
-            <div class="step-card"><div class="step-number">۳</div><h3>ثبت سفارش</h3><p>اطلاعات دریافت سفارش را وارد و سفارش را ثبت کنید.</p></div>
-            <div class="step-card"><div class="step-number">۴</div><h3>تحویل کد</h3><p>در صورت موجود بودن کد دیجیتال، آن را در سفارش خود ببینید.</p></div>
-        </div>
-    </div>
-</section>
+<section class="section section-soft"><div class="container"><div class="section-head centered"><div><span class="eyebrow">مسیر خرید</span><h2>چهار قدم تا سفارش</h2></div></div><div class="steps-grid"><div class="step reveal"><i>۱</i><h3>انتخاب</h3><p>محصول و گزینه مناسب را پیدا کن.</p></div><div class="step reveal"><i>۲</i><h3>سبد</h3><p>تعداد و موجودی را بررسی کن.</p></div><div class="step reveal"><i>۳</i><h3>ثبت</h3><p>اطلاعات سفارش را وارد کن.</p></div><div class="step reveal"><i>۴</i><h3>تحویل</h3><p>کد دیجیتال را در سفارش ببین.</p></div></div></div></section>
 
-<section class="faq-section">
-    <div class="container">
-        <div class="section-heading centered"><div><span class="section-label">سؤالات متداول</span><h2>راهنمای سریع</h2></div></div>
-        <div class="faq-list">
-            <details class="faq-item"><summary>آیا برای خرید باید حساب داشته باشم؟</summary><p>بله. برای ثبت سفارش و مشاهده سفارش‌ها باید وارد حساب خود شوید.</p></details>
-            <details class="faq-item"><summary>کد دیجیتال کجا نمایش داده می‌شود؟</summary><p>پس از تکمیل سفارش، کدهای تحویل‌شده در صفحه جزئیات سفارش نمایش داده می‌شوند.</p></details>
-            <details class="faq-item"><summary>اگر موجودی کد کافی نباشد چه می‌شود؟</summary><p>سفارش می‌تواند در وضعیت «در حال پردازش» باقی بماند تا کدهای کافی فراهم شوند.</p></details>
-        </div>
-    </div>
-</section>
+<section class="section faq-section"><div class="container narrow"><div class="section-head centered"><div><span class="eyebrow">راهنما</span><h2>سؤالات متداول</h2></div></div><div class="faq-list"><details><summary>آیا برای خرید حساب لازم است؟</summary><p>برای ثبت سفارش و مشاهده سفارش‌ها باید وارد حساب کاربری شوید.</p></details><details><summary>کد دیجیتال کجا نمایش داده می‌شود؟</summary><p>پس از تکمیل سفارش، کدهای تحویل‌شده در جزئیات همان سفارش نمایش داده می‌شوند.</p></details><details><summary>اگر موجودی کافی نباشد چه می‌شود؟</summary><p>سفارش طبق وضعیت پردازش سیستم ادامه پیدا می‌کند تا موجودی لازم فراهم شود.</p></details></div></div></section>
 {% endblock %}
