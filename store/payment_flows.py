@@ -134,7 +134,7 @@ def payment_callback(request, order_id):
             return redirect("order_detail", order_id=order.id)
         return render(request, "payment_result.html", {"order": order, "success": True, "message": "پرداخت با موفقیت تأیید شد."})
     except Exception as exc:
-        return render(request, "payment_result.html", {"order": order, "success": False, "message": f"خطای داخلی هنگام تأیید پرداخت: {exc}"})
+        return render(request, "payment_result.html", {"order": order, "success": False, "message": "در تأیید پرداخت مشکلی رخ داد. اگر مبلغ از حساب شما کسر شده، سفارش شما بررسی خواهد شد."})
 
 
 def _after_callback(request, order):

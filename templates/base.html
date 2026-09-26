@@ -62,7 +62,7 @@
       <div><a class="brand footer-brand" href="{% url 'home' %}"><span class="brand-mark">G</span><span class="brand-text">Giftweb</span></a><p>فروشگاه محصولات دیجیتال با تجربه خرید سریع، شفاف و حرفه‌ای.</p></div>
       <div><h3>دسترسی سریع</h3><a href="{% url 'home' %}">خانه</a><a href="{% url 'shop' %}">فروشگاه</a>{% if user.is_authenticated %}<a href="{% url 'orders' %}">سفارش‌ها</a>{% endif %}</div>
       <div><h3>خرید</h3><a href="{% url 'shop' %}">همه محصولات</a><a href="{% url 'cart' %}">سبد خرید</a><a href="{% url 'shop' %}">دسته‌بندی‌ها</a></div>
-      <div><h3>اعتماد</h3><p>پرداخت امن، حساب کاربری و نمایش کدهای دیجیتال در جزئیات سفارش.</p></div>
+      <div><h3>راهنما</h3><a href="{% url 'faq' %}">سؤالات متداول</a><a href="{% url 'guide' %}">راهنمای خرید</a><a href="{% url 'terms' %}">قوانین</a><a href="{% url 'privacy' %}">حریم خصوصی</a><a href="{% url 'contact' %}">تماس با ما</a></div>
     </div>
     <div class="container footer-bottom"><span>© 2026 Giftweb</span><span>ساخته‌شده برای تجربه‌ای سریع و ساده</span></div>
   </footer>

@@ -1,1 +1,37 @@
-{% extends "admin/base_site.html" %}{% load i18n %}{% block content %}<div class="gw-dashboard"><div class="gw-dashboard-hero"><div><span>Giftweb Control Center</span><h1>مدیریت فروشگاه</h1><p>محصولات، سفارش‌ها، کدهای دیجیتال و پرداخت‌ها را از یکجا کنترل کن.</p></div><a href="/" class="admin-home-link">مشاهده فروشگاه ↗</a></div><div class="gw-model-grid">{% for app in app_list %}{% for model in app.models %}<a class="gw-model-card" href="{{ model.admin_url }}"><div class="gw-model-top"><b>{{ model.name }}</b><span>{{ app.name }}</span></div><strong>{{ model.count }}</strong><small>{% if model.add_url %}ایجاد مورد جدید ↗{% else %}مدیریت مدل{% endif %}</small></a>{% endfor %}{% endfor %}</div></div>{% endblock %}
+{% extends "admin/index.html" %}
+{% load admin_dashboard %}
+{% block content %}
+<style>
+.gw{margin-bottom:24px}.gw-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.gw-kpi,.gw-card{background:var(--body-bg,#fff);border:1px solid var(--hairline-color,#ddd);border-radius:14px;padding:17px}
+.gw-kpi small{display:block;opacity:.65;margin-bottom:7px}.gw-kpi strong{font-size:25px}.gw-kpi span{font-size:11px;opacity:.6}
+.gw-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.gw-card h2{font-size:17px;margin:0 0 13px}
+.gw-table{width:100%;border-collapse:collapse}.gw-table th,.gw-table td{padding:9px;border-bottom:1px solid var(--hairline-color,#eee);font-size:12px;text-align:right}
+@media(max-width:900px){.gw-kpis{grid-template-columns:repeat(2,1fr)}.gw-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.gw-kpis{grid-template-columns:1fr}}
+</style>
+<div class="gw">
+<div class="gw-kpis">
+<div class="gw-kpi"><small>فروش امروز</small><strong>{% sales_today %}</strong><span>تومان</span></div>
+<div class="gw-kpi"><small>سفارش امروز</small><strong>{% orders_today %}</strong><span>سفارش</span></div>
+<div class="gw-kpi"><small>در انتظار پرداخت</small><strong>{% pending_orders %}</strong><span>سفارش</span></div>
+<div class="gw-kpi"><small>در حال پردازش</small><strong>{% processing_orders %}</strong><span>سفارش</span></div>
+<div class="gw-kpi"><small>کدهای موجود</small><strong>{% available_codes %}</strong><span>کد دیجیتال</span></div>
+<div class="gw-kpi"><small>کم‌موجودی</small><strong>{% low_stock %}</strong><span>محصول</span></div>
+<div class="gw-kpi"><small>پرداخت ناموفق</small><strong>{% failed_payments %}</strong><span>پرداخت</span></div>
+<div class="gw-kpi"><small>نیازمند بررسی</small><strong>{% attention_count %}</strong><span>مورد</span></div>
+</div>
+<div class="gw-grid">
+<section class="gw-card"><h2>آخرین سفارش‌ها</h2>{% recent_orders as rows %}
+<table class="gw-table"><thead><tr><th>سفارش</th><th>کاربر</th><th>مبلغ</th><th>وضعیت</th></tr></thead><tbody>
+{% for order in rows %}<tr><td><a href="{% url 'admin:store_order_change' order.id %}">#{{ order.id }}</a></td><td>{{ order.user.username }}</td><td>{{ order.total_amount|floatformat:0 }}</td><td>{{ order.get_status_display }}</td></tr>
+{% empty %}<tr><td colspan="4">سفارشی وجود ندارد.</td></tr>{% endfor %}
+</tbody></table></section>
+<section class="gw-card"><h2>هشدار موجودی</h2>{% low_stock_products as rows %}
+<table class="gw-table"><thead><tr><th>محصول</th><th>موجودی</th></tr></thead><tbody>
+{% for product in rows %}<tr><td><a href="{% url 'admin:store_product_change' product.id %}">{{ product.name }}</a></td><td>{{ product.stock }}</td></tr>
+{% empty %}<tr><td colspan="2">موردی نیست.</td></tr>{% endfor %}
+</tbody></table></section>
+</div></div>
+{{ block.super }}
+{% endblock %}

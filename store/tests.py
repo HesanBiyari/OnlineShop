@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
+from unittest.mock import patch
 from django.urls import reverse
 from django.utils import timezone
 
@@ -12,6 +13,21 @@ from .models import (
     Product,
     ProductVariant,
 )
+
+
+class GiftwebFakeGatewayResult:
+    def __init__(self, ok=True, code="100", message="Paid", authority="TEST-AUTHORITY", reference_id="TEST-REF"):
+        self.ok = ok
+        self.code = code
+        self.message = message
+        self.authority = authority
+        self.reference_id = reference_id
+        self.redirect_url = "/fake-pay/"
+
+
+class GiftwebFakeGateway:
+    def verify_payment(self, *, amount_toman, authority):
+        return GiftwebFakeGatewayResult(authority=authority)
 
 
 class StoreSmokeTests(TestCase):
@@ -104,7 +120,14 @@ class StoreSmokeTests(TestCase):
         self.assertEqual(order.status, "pending")
         self.assertEqual(order.total_amount, 300000)
 
-        response = self.client.post(reverse("payment_success", args=[order.pk]))
+        payment_record = __import__("store.models", fromlist=["Payment"]).Payment.objects.get(order=order)
+        payment_record.authority = "TEST-AUTHORITY"
+        payment_record.status = "redirected"
+        payment_record.save(update_fields=["authority", "status", "updated_at"])
+        with patch("store.payment_flows.get_gateway", return_value=GiftwebFakeGateway()):
+            response = self.client.get(
+                reverse("payment_callback", args=[order.pk]) + "?Status=OK&Authority=TEST-AUTHORITY"
+            )
         self.assertEqual(response.status_code, 302)
         order.refresh_from_db()
         self.assertEqual(order.status, "processing")
@@ -129,7 +152,14 @@ class StoreSmokeTests(TestCase):
             },
         )
         order = Order.objects.get(user=self.user)
-        self.client.post(reverse("payment_success", args=[order.pk]))
+        payment_record = __import__("store.models", fromlist=["Payment"]).Payment.objects.get(order=order)
+        payment_record.authority = "TEST-AUTHORITY"
+        payment_record.status = "redirected"
+        payment_record.save(update_fields=["authority", "status", "updated_at"])
+        with patch("store.payment_flows.get_gateway", return_value=GiftwebFakeGateway()):
+            self.client.get(
+                reverse("payment_callback", args=[order.pk]) + "?Status=OK&Authority=TEST-AUTHORITY"
+            )
         order.refresh_from_db()
         self.assertEqual(order.status, "completed")
         self.assertEqual(order.items.first().digital_codes.count(), 1)
@@ -197,7 +227,14 @@ class RepairRegressionTests(TestCase):
             },
         )
         order = Order.objects.get(user=self.user)
-        self.client.post(reverse("payment_success", args=[order.pk]))
+        payment_record = __import__("store.models", fromlist=["Payment"]).Payment.objects.get(order=order)
+        payment_record.authority = "TEST-AUTHORITY"
+        payment_record.status = "redirected"
+        payment_record.save(update_fields=["authority", "status", "updated_at"])
+        with patch("store.payment_flows.get_gateway", return_value=GiftwebFakeGateway()):
+            self.client.get(
+                reverse("payment_callback", args=[order.pk]) + "?Status=OK&Authority=TEST-AUTHORITY"
+            )
         order.refresh_from_db()
         self.assertEqual(order.status, "completed")
         self.assertEqual(order.items.first().digital_codes.count(), 1)

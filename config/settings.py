@@ -170,3 +170,10 @@ SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
 # When deployed behind a TLS-terminating proxy (for example Render), set
 # DJANGO_SECURE_SSL_REDIRECT=true and keep this proxy header enabled.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Giftweb production hardening
+SECURE_REFERRER_POLICY=os.getenv("DJANGO_SECURE_REFERRER_POLICY","same-origin")
+SECURE_CONTENT_TYPE_NOSNIFF=True
+SESSION_COOKIE_HTTPONLY=True
+SESSION_COOKIE_SECURE=not DEBUG
+CSRF_COOKIE_SECURE=not DEBUG
+SECURE_SSL_REDIRECT=env_bool("DJANGO_SECURE_SSL_REDIRECT",False)

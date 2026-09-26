@@ -20,7 +20,6 @@ from .models import (
     DigitalCode,
     Order,
     OrderItem,
-    Payment,
     Product,
     ProductImage,
     ProductVariant,
@@ -532,13 +531,6 @@ def checkout(request):
                         for item in locked_items
                     ]
                 )
-                Payment.objects.create(
-                    order=order,
-                    amount=locked_total,
-                    currency=str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_CURRENCY", "IRR")).upper(),
-                    gateway=str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_GATEWAY", "zarinpal")),
-                    status="created",
-                )
             return redirect("payment", order_id=order.id)
     else:
         form = CheckoutForm(initial={"email": request.user.email})
@@ -598,32 +590,6 @@ def payment_success(request, order_id):
             order.paid_at = now
         order.status = "paid"
         order.save(update_fields=["status", "payment_ref", "paid_at"])
-
-        payment_record, _ = Payment.objects.get_or_create(
-            order=order,
-            defaults={
-                "amount": order.total_amount,
-                "currency": str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_CURRENCY", "IRR")).upper(),
-                "gateway": str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_GATEWAY", "zarinpal")),
-            },
-        )
-        payment_record.status = "paid"
-        payment_record.amount = order.total_amount
-        payment_record.reference_id = order.payment_ref
-        payment_record.paid_at = now
-        payment_record.gateway_code = "DEMO"
-        payment_record.gateway_message = "Local/demo payment completed."
-        payment_record.save(
-            update_fields=[
-                "status",
-                "amount",
-                "reference_id",
-                "paid_at",
-                "gateway_code",
-                "gateway_message",
-                "updated_at",
-            ]
-        )
 
         delivered = deliver_digital_codes(order)
         order.status = "completed" if delivered else "processing"

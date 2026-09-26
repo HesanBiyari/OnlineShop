@@ -3,10 +3,17 @@ from django.urls import path
 from .views import account, add_to_cart, cart_view, checkout, clear_cart, home, logout_view, order_detail, orders, product_detail, remove_from_cart, shop, update_cart
 from .auth_flows import login_view, signup_view
 from .payment_flows import payment, payment_callback
+from .static_pages import about, contact, faq, guide, terms, privacy
 
 urlpatterns = [
     path("", home, name="home"),
     path("shop/", shop, name="shop"),
+    path("about/", about, name="about"),
+    path("contact/", contact, name="contact"),
+    path("faq/", faq, name="faq"),
+    path("guide/", guide, name="guide"),
+    path("terms/", terms, name="terms"),
+    path("privacy/", privacy, name="privacy"),
     path("product/<int:pk>/", product_detail, name="product_detail"),
     path("signup/", signup_view, name="signup"),
     path("login/", login_view, name="login"),
