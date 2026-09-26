@@ -30,6 +30,16 @@ class Product(models.Model):
     price = models.PositiveIntegerField()
     stock = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_bestseller = models.BooleanField(
+        default=False,
+        verbose_name="پرفروش",
+        help_text="نمایش محصول در بخش پرفروش‌های صفحه اصلی.",
+    )
+    bestseller_priority = models.PositiveSmallIntegerField(
+        default=100,
+        verbose_name="اولویت پرفروش",
+        help_text="عدد کمتر = نمایش زودتر در بخش پرفروش‌ها.",
+    )
 
     class Meta:
         ordering = ("-created_at",)

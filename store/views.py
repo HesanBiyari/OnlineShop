@@ -82,6 +82,30 @@ def home(request):
         featured_products.extend(extra_products)
 
     new_products = list(products[:4])
+
+    # Manual curation comes first.
+    bestseller_products = list(
+        products.filter(is_bestseller=True)
+        .order_by("bestseller_priority", "-created_at", "-id")[:4]
+    )
+
+    # Fill empty slots with actual sold quantity from non-canceled orders.
+    if len(bestseller_products) < 4:
+        from django.db.models import Sum
+
+        selected_ids = {product.id for product in bestseller_products}
+        automatic_bestsellers = list(
+            Product.objects.filter(
+                orderitem__order__status__in=("paid", "processing", "completed")
+            )
+            .exclude(id__in=selected_ids)
+            .annotate(sold_units=Sum("orderitem__quantity"))
+            .filter(sold_units__gt=0)
+            .order_by("-sold_units", "-created_at", "-id")[
+                : 4 - len(bestseller_products)
+            ]
+        )
+        bestseller_products.extend(automatic_bestsellers)
     categories = Category.objects.order_by("name")[:5]
 
     return render(
@@ -91,6 +115,7 @@ def home(request):
             "categories": categories,
             "featured_products": featured_products,
             "new_products": new_products,
+            "bestseller_products": bestseller_products,
         },
     )
 

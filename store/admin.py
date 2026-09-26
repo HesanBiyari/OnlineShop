@@ -23,23 +23,30 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("name", "category", "catalog_price_admin", "catalog_stock_admin", "created_at")
-    list_filter = ("category",)
+    list_display = (
+        "name",
+        "category",
+        "price",
+        "stock",
+        "is_bestseller",
+        "bestseller_priority",
+        "created_at",
+    )
+    list_filter = ("category", "is_bestseller")
     search_fields = ("name", "description")
-    ordering = ("-created_at",)
-    list_select_related = ("category", "discount")
+    ordering = ("is_bestseller", "bestseller_priority", "-created_at")
+    list_select_related = ("category",)
+    list_editable = ("is_bestseller", "bestseller_priority")
+    fieldsets = (
+        ("اطلاعات اصلی", {
+            "fields": ("name", "category", "description", "price", "stock"),
+        }),
+        ("نمایش و فروش", {
+            "fields": ("is_bestseller", "bestseller_priority"),
+            "description": "کنترل مستقیم نمایش محصول در بخش پرفروش‌های فروشگاه.",
+        }),
+    )
     inlines = [ProductVariantInline, ProductImageInline, DiscountInline]
-
-    @admin.display(description="قیمت نمایشی")
-    def catalog_price_admin(self, obj):
-        return f"{obj.catalog_price:,} تومان"
-
-    @admin.display(description="موجودی نمایشی")
-    def catalog_stock_admin(self, obj):
-        variants = obj._active_variant_list()
-        if variants:
-            return " | ".join(f"{v.name}: {v.stock}" for v in variants[:5])
-        return obj.stock
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):

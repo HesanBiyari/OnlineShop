@@ -4,6 +4,7 @@
       {% if image %}<img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" loading="lazy">{% else %}<div class="product-placeholder">✦</div>{% endif %}
     {% endwith %}
     {% if product.discount and product.discount.is_active_now %}<span class="discount-badge">{{ product.discount.percent }}٪ تخفیف</span>{% endif %}
+    {% if product.is_bestseller %}<span class="bestseller-badge">★ پرفروش</span>{% endif %}
     <span class="media-shine" aria-hidden="true"></span>
   </a>
   <div class="product-card-body">
