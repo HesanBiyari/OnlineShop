@@ -90,3 +90,5 @@ def login_view(request):
                 return redirect(next_url)
             return redirect("account")
     return render(request, "login.html", {"phone": phone, "next": request.GET.get("next", ""), "login_error": request.method == "POST"})
+# GIFTWEB_FINAL_PACKAGE_V1
+from .advanced_services import ensure_referral

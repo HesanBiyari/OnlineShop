@@ -376,3 +376,4 @@ class Payment(models.Model):
     def __str__(self):
         return f"Payment #{self.id} - Order #{self.order_id}"
 
+from .advanced_models import Coupon, CouponRedemption, LoyaltyAccount, LoyaltyTransaction, Notification, RecentlyViewed, Referral, Review, Wishlist

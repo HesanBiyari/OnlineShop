@@ -1,5 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ product.name }} | Giftweb{% endblock %}
+{% block title %}{{ product.name }} | Giftweb<!-- GIFTWEB_FINAL_PACKAGE_V1 -->
+<section class="advanced-product-panel">
+{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
+<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
+{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
+</section>
+{% endblock %}
+{% block extra_head %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"{{ product.name|escapejs }}","description":"{{ product.description|striptags|escapejs }}","offers":{"@type":"Offer","priceCurrency":"IRR","price":"{{ product.catalog_price }}","availability":"{% if product.catalog_has_stock %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}","url":"{{ request.build_absolute_uri }}"}}</script>{% endblock %}
 {% block content %}
 <section class="section product-page"><div class="container"><div class="product-detail-grid">
 <div class="gallery-card" data-product-gallery><div class="product-main-media">{% with image=product.display_images|first %}{% if image %}<img data-gallery-main src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">{% else %}<div class="product-placeholder">✦</div>{% endif %}{% endwith %}</div>{% if product.display_images %}<div class="product-thumbnails">{% for image in product.display_images %}<button type="button" class="product-thumbnail{% if forloop.first %} is-active{% endif %}" data-gallery-thumb data-image-url="{{ image.image.url }}" data-image-alt="{{ image.alt_text|default:product.name }}"><img src="{{ image.image.url }}" alt="" loading="lazy"></button>{% endfor %}</div>{% endif %}</div>

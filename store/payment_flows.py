@@ -11,6 +11,8 @@ from django.utils import timezone
 from .models import Order, Payment, Product, ProductVariant
 from .payment_gateway import get_gateway
 from .utils import deliver_digital_codes
+from .advanced_services import finalize_advanced_order, release_coupon_for_order
+# GIFTWEB_FINAL_PACKAGE_V1
 
 
 @login_required
@@ -80,6 +82,8 @@ def payment_callback(request, order_id):
             payment_record.save(update_fields=["status", "updated_at"])
             result = get_gateway().verify_payment(amount_toman=locked_order.total_amount, authority=authority)
             if not result.ok:
+                if getattr(locked_order, "coupon_redemption", None):
+                    release_coupon_for_order(locked_order)
                 payment_record.status = "failed"
                 payment_record.gateway_code = result.code
                 payment_record.gateway_message = result.message
@@ -125,6 +129,7 @@ def payment_callback(request, order_id):
                 locked_order.save(update_fields=["status", "payment_ref", "paid_at"])
                 delivered = deliver_digital_codes(locked_order)
                 if locked_order.status == "paid":
+                    finalize_advanced_order(locked_order)
                     locked_order.status = "completed" if delivered else "processing"
                     locked_order.save(update_fields=["status"])
         if request.user.is_authenticated and request.user.id == order.user_id:

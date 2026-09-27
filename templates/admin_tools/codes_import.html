@@ -1,0 +1,1 @@
+{% extends "admin/base_site.html" %}{% block content %}<div class="gw-card"><h1>Import Digital Codes</h1><p>CSV: code,pin,product_id,variant_id</p><form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="file" name="file" accept=".csv" required><button class="button default">Import</button></form></div>{% endblock %}

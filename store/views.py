@@ -26,6 +26,9 @@ from .models import (
     ProductVariant,
 )
 from .utils import deliver_digital_codes, get_item_price, get_item_stock
+from .advanced_models import Review, Wishlist
+from .advanced_services import record_recent_view
+# GIFTWEB_FINAL_PACKAGE_V1
 
 
 def active_discount_q(now=None):
@@ -192,15 +195,10 @@ def product_detail(request, pk):
         .order_by("-created_at", "-id")[:4]
     )
     variants = list(getattr(product, "active_variants", []))
-    return render(
-        request,
-        "product_detail.html",
-        {
-            "product": product,
-            "variants": variants,
-            "related_products": related_products,
-        },
-    )
+    record_recent_view(request, product)
+    reviews = Review.objects.filter(product=product, is_approved=True).select_related("user")[:10]
+    wished = request.user.is_authenticated and Wishlist.objects.filter(user=request.user, product=product).exists()
+    return render(request, "product_detail.html", {"product": product, "variants": variants, "related_products": related_products, "reviews": reviews, "review_count": Review.objects.filter(product=product, is_approved=True).count(), "wished": wished})
 
 
 def signup_view(request):
@@ -515,8 +513,18 @@ def checkout(request):
                     full_name=form.cleaned_data["full_name"],
                     email=form.cleaned_data["email"],
                     phone=form.cleaned_data["phone"],
-                    total_amount=locked_total,
+                    total_amount=max(0, locked_total - int(request.session.get("coupon_discount", 0) or 0)),
                 )
+                if request.session.get("coupon_code"):
+                    from .advanced_models import Coupon, CouponRedemption
+                    coupon = Coupon.objects.filter(code=request.session.get("coupon_code")).first()
+                    if coupon and int(request.session.get("coupon_discount", 0) or 0):
+                        coupon = Coupon.objects.select_for_update().filter(pk=coupon.pk).first()
+                        if not coupon or not coupon.is_valid_now:
+                            raise ValueError("Coupon became invalid before checkout.")
+                        coupon.used_count += 1
+                        coupon.save(update_fields=["used_count"])
+                        CouponRedemption.objects.create(coupon=coupon, order=order, user=request.user, amount=int(request.session.get("coupon_discount", 0) or 0))
                 OrderItem.objects.bulk_create(
                     [
                         OrderItem(
@@ -534,7 +542,7 @@ def checkout(request):
                 )
                 Payment.objects.create(
                     order=order,
-                    amount=locked_total,
+                    amount=order.total_amount,
                     currency=str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_CURRENCY", "IRR")).upper(),
                     gateway=str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_GATEWAY", "zarinpal")),
                     status="created",
