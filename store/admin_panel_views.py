@@ -7,6 +7,8 @@ from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.forms import modelform_factory
+from django import forms
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -103,6 +105,43 @@ def _model_form(key, instance=None, data=None, files=None):
     return Form(data=data, files=files, instance=instance)
 
 
+class ProductImageUploadForm(forms.Form):
+    image=forms.ImageField(required=True)
+
+def _validate_product_images(files):
+    errors=[]
+    for uploaded in files:
+        f=ProductImageUploadForm(files={'image': uploaded})
+        if not f.is_valid():
+            name=getattr(uploaded,'name','تصویر')
+            errors.append(f'{name}: ' + '; '.join(str(e) for e in f.errors.get('image',[])))
+    return errors
+
+def _save_product_images(product, request):
+    uploads=request.FILES.getlist('product_images')
+    if not uploads:
+        single=request.FILES.get('product_images')
+        uploads=[single] if single else []
+    if not uploads:
+        return []
+    errors=_validate_product_images(uploads)
+    if errors:
+        return errors
+    make_main=request.POST.get('make_main_image') == '1'
+    alt_text=request.POST.get('image_alt_text','').strip()[:200]
+    has_main=ProductImage.objects.filter(product=product,is_main=True).exists()
+    with transaction.atomic():
+        if make_main:
+            ProductImage.objects.filter(product=product,is_main=True).update(is_main=False)
+        for index,uploaded in enumerate(uploads):
+            ProductImage.objects.create(
+                product=product,
+                image=uploaded,
+                alt_text=alt_text or getattr(uploaded,'name','').rsplit('.',1)[0][:200],
+                is_main=(index == 0 and (make_main or not has_main)),
+            )
+    return []
+
 def dashboard(request):
     today=timezone.localdate()
     paid_statuses=('paid','processing','completed')
@@ -176,14 +215,25 @@ def model_create(request,key):
     if key not in MODEL_MAP:
         return redirect('admin_dashboard')
     form=_model_form(key)
+    image_errors=[]
     if request.method=='POST':
         form=_model_form(key,data=request.POST,files=request.FILES)
         if form.is_valid():
-            obj=form.save()
-            messages.success(request,'مورد جدید با موفقیت ایجاد شد.')
-            return redirect('admin_model_edit',key=key,pk=obj.pk)
+            if key=='products':
+                image_errors=_validate_product_images(request.FILES.getlist('product_images'))
+            if not image_errors:
+                obj=form.save()
+                if key=='products':
+                    image_errors=_save_product_images(obj,request)
+                    if image_errors:
+                        obj.delete()
+                        return render(request,'admin_panel/model_form.html',{
+                            'key':key,'title':'افزودن '+MODEL_LABELS.get(key,key),'form':form,'nav':ADMIN_NAV,'active':key,'image_errors':image_errors,
+                        })
+                messages.success(request,'مورد جدید با موفقیت ایجاد شد.')
+                return redirect('admin_model_edit',key=key,pk=obj.pk)
     return render(request,'admin_panel/model_form.html',{
-        'key':key,'title':'افزودن '+MODEL_LABELS.get(key,key),'form':form,'nav':ADMIN_NAV,'active':key,
+        'key':key,'title':'افزودن '+MODEL_LABELS.get(key,key),'form':form,'nav':ADMIN_NAV,'active':key,'image_errors':image_errors,
     })
 
 model_create = staff_required(model_create)
@@ -195,14 +245,24 @@ def model_edit(request,key,pk):
         return redirect('admin_dashboard')
     obj=get_object_or_404(qs,pk=pk)
     form=_model_form(key,instance=obj)
+    image_errors=[]
     if request.method=='POST':
         form=_model_form(key,instance=obj,data=request.POST,files=request.FILES)
         if form.is_valid():
-            form.save()
-            messages.success(request,'تغییرات با موفقیت ذخیره شد.')
-            return redirect('admin_model_list',key=key)
+            if key=='products':
+                image_errors=_validate_product_images(request.FILES.getlist('product_images'))
+            if not image_errors:
+                form.save()
+                if key=='products':
+                    image_errors=_save_product_images(obj,request)
+                    if image_errors:
+                        messages.error(request,'تصویر اضافه نشد؛ اطلاعات محصول ذخیره شد.')
+                        image_errors=[]
+                if not image_errors:
+                    messages.success(request,'تغییرات با موفقیت ذخیره شد.')
+                    return redirect('admin_model_list',key=key)
     return render(request,'admin_panel/model_form.html',{
-        'key':key,'title':'ویرایش '+MODEL_LABELS.get(key,key),'form':form,'object':obj,'nav':ADMIN_NAV,'active':key,
+        'key':key,'title':'ویرایش '+MODEL_LABELS.get(key,key),'form':form,'object':obj,'nav':ADMIN_NAV,'active':key,'image_errors':image_errors,
     })
 
 model_edit = staff_required(model_edit)
