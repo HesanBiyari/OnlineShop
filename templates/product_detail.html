@@ -1,5 +1,23 @@
 {% extends "base.html" %}
-{% block title %}{{ product.name }} | Giftweb<!-- GIFTWEB_FINAL_PACKAGE_V1 -->
+{% block title %}{{ product.name }} | Giftbaaz
+<section class="advanced-product-panel">
+{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
+<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
+{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
+</section>
+
+<section class="advanced-product-panel">
+{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
+<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
+{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
+</section>
+
+<section class="advanced-product-panel">
+{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
+<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
+{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
+</section>
+
 <section class="advanced-product-panel">
 {% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
 <h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}

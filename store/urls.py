@@ -1,3 +1,4 @@
+from .admin_panel_views import dashboard, logout_view, model_create, model_delete, model_edit, model_list
 from django.urls import path
 
 from .views import account, add_to_cart, cart_view, checkout, clear_cart, home, logout_view, order_detail, orders, product_detail, remove_from_cart, shop, update_cart
@@ -8,6 +9,13 @@ from .advanced_views import analytics, codes_export, codes_import, coupon_apply,
 # GIFTWEB_FINAL_PACKAGE_V1
 
 urlpatterns = [
+    path('dashboard/', dashboard, name='admin_dashboard'),
+    path('dashboard/logout/', logout_view, name='admin_dashboard_logout'),
+    path('dashboard/<str:key>/', model_list, name='admin_model_list'),
+    path('dashboard/<str:key>/add/', model_create, name='admin_model_create'),
+    path('dashboard/<str:key>/<int:pk>/edit/', model_edit, name='admin_model_edit'),
+    path('dashboard/<str:key>/<int:pk>/delete/', model_delete, name='admin_model_delete'),
+
     path('robots.txt', robots, name='robots'),
     path("", home, name="home"),
     path("shop/", shop, name="shop"),

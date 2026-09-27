@@ -1,0 +1,11 @@
+{% load static %}<!doctype html>
+<html lang="fa" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}Giftbaaz{% endblock %}</title><link rel="stylesheet" href="{% static 'admin/giftweb_dashboard.css' %}"></head>
+<body><div class="gw-shell">
+<aside class="gw-sidebar"><div class="gw-brand"><span class="gw-logo">G</span><div><strong>Giftbaaz</strong><small>پنل مدیریت فروشگاه</small></div></div>
+<nav>{% for k,label,icon in nav %}<a class="{% if active == k %}active{% endif %}" href="{% if k == 'dashboard' %}{% url 'admin_dashboard' %}{% else %}{% url 'admin_model_list' k %}{% endif %}"><span>{{ icon }}</span>{{ label }}</a>{% endfor %}</nav>
+<div class="gw-sidebar-foot"><a href="/">↗ مشاهده فروشگاه</a><a href="/django-admin/">⚙ مدیریت فنی</a></div></aside>
+<main class="gw-main"><header class="gw-topbar"><div class="gw-top-left"><button class="gw-mobile-menu" type="button" onclick="document.body.classList.toggle('menu-open')">☰</button><span>پنل مدیریت Giftbaaz</span></div>
+<div class="gw-user"><span class="gw-avatar">{{ request.user.username|slice:"1"|upper }}</span><div><strong>{% firstof request.user.get_full_name request.user.username %}</strong><small>مدیر فروشگاه</small></div><form method="post" action="{% url 'admin_dashboard_logout' %}">{% csrf_token %}<button type="submit">خروج</button></form></div></header>
+<section class="gw-content">{% for message in messages %}<div class="gw-alert {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</section></main></div>
+<script>document.querySelectorAll('.gw-sidebar a').forEach(a=>a.addEventListener('click',()=>document.body.classList.remove('menu-open')));</script></body></html>
