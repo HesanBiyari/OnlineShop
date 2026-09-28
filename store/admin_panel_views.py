@@ -5,8 +5,9 @@ from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum
 from django.forms import modelform_factory
+from django.db.models import F, IntegerField, OuterRef, Q, Subquery, Sum
+from django.db.models.functions import Coalesce
 from django import forms
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,11 +19,6 @@ from .advanced_models import Coupon, CouponRedemption, LoyaltyAccount, LoyaltyTr
 User = get_user_model()
 
 
-def staff_required(view):
-    return user_passes_test(
-        lambda u: u.is_authenticated and u.is_staff,
-        login_url='/django-admin/login/',
-    )(view)
 
 MODEL_MAP = {
     'products': Product,
@@ -54,6 +50,18 @@ MODEL_LABELS = {
     'notifications':'اعلان‌ها', 'recently-viewed':'بازدیدهای اخیر', 'users':'کاربران', 'groups':'دسترسی‌ها',
 }
 
+SUPERUSER_ONLY_KEYS = {"groups"}
+READ_ONLY_KEYS = {"payments", "coupon-redemptions", "loyalty-transactions", "recently-viewed"}
+
+
+def _guard_key(request, key, *, write=False):
+    from django.core.exceptions import PermissionDenied
+    if key == "groups" and not request.user.is_superuser:
+        raise PermissionDenied
+    if write and key in READ_ONLY_KEYS:
+        raise PermissionDenied
+
+
 ADMIN_NAV = [
     ('dashboard','داشبورد','📊'),
     ('products','محصولات','🛍️'),
@@ -68,6 +76,185 @@ ADMIN_NAV = [
     ('users','کاربران','👥'),
     ('groups','دسترسی‌ها','🛡️'),
 ]
+# ============================================================
+# GIFTBAAZ CLEAN ADMIN HELPERS
+# ============================================================
+
+def staff_required(view):
+    def wrapped(request, *args, **kwargs):
+
+        if not request.user.is_authenticated:
+            return redirect(
+                "/django-admin/login/"
+            )
+
+        if not request.user.is_staff:
+            return redirect(
+                "/django-admin/login/"
+            )
+
+        return view(
+            request,
+            *args,
+            **kwargs,
+        )
+
+    return wrapped
+
+
+def _editable_fields(
+    model,
+    key,
+    user=None,
+):
+
+    if key == "users":
+
+        fields = [
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "is_active",
+        ]
+
+        if (
+            user is not None
+            and getattr(
+                user,
+                "is_superuser",
+                False,
+            )
+        ):
+
+            fields.extend(
+                [
+                    "is_staff",
+                    "is_superuser",
+                ]
+            )
+
+        return fields
+
+    if key == "groups":
+
+        return [
+            "name",
+            "permissions",
+        ]
+
+    fields = []
+
+    blocked = {
+        "created_at",
+        "updated_at",
+        "used_at",
+        "final_price",
+        "catalog_price",
+        "is_used",
+    }
+
+    for field in model._meta.get_fields():
+
+        if not getattr(
+            field,
+            "editable",
+            False,
+        ):
+            continue
+
+        if getattr(
+            field,
+            "auto_created",
+            False,
+        ):
+            continue
+
+        if getattr(
+            field,
+            "many_to_many",
+            False,
+        ):
+            continue
+
+        if getattr(
+            field,
+            "one_to_many",
+            False,
+        ):
+            continue
+
+        if field.name in blocked:
+            continue
+
+        if (
+            key == "products"
+            and field.name == "slug"
+        ):
+            continue
+
+        if (
+            key
+            in {
+                "orders",
+                "payments",
+                "order-items",
+                "coupon-redemptions",
+                "loyalty-transactions",
+                "recently-viewed",
+            }
+            and field.name
+            in {
+                "user",
+                "order",
+                "order_item",
+                "payment",
+                "authority",
+            }
+        ):
+            continue
+
+        fields.append(
+            field.name
+        )
+
+    return fields
+
+
+def _model_form(
+    key,
+    instance=None,
+    data=None,
+    files=None,
+    user=None,
+):
+
+    model = MODEL_MAP[key]
+
+    Form = modelform_factory(
+        model,
+        fields=_editable_fields(
+            model,
+            key,
+            user=user,
+        ),
+    )
+
+    return Form(
+        data=data,
+        files=files,
+        instance=instance,
+    )
+
+# ============================================================
+# GIFTBAAZ CLEAN ADMIN HELPERS
+# ============================================================
+
+
+
+
+
+
 
 
 def _qs_for_key(key):
@@ -77,32 +264,8 @@ def _qs_for_key(key):
     return model.objects.all()
 
 
-def _editable_fields(model, key):
-    if key == 'users':
-        return ['username','first_name','last_name','email','is_active','is_staff','is_superuser']
-    if key == 'groups':
-        return ['name','permissions']
-    fields=[]
-    blocked={'created_at','updated_at','used_at','final_price','catalog_price','is_used'}
-    for field in model._meta.get_fields():
-        if not getattr(field,'editable',False):
-            continue
-        if getattr(field,'auto_created',False) or getattr(field,'many_to_many',False) or getattr(field,'one_to_many',False):
-            continue
-        if field.name in blocked:
-            continue
-        if key == 'products' and field.name == 'slug':
-            continue
-        if key in {'orders','payments','order-items','coupon-redemptions','loyalty-transactions','recently-viewed'} and field.name in {'user','order','order_item','payment','authority'}:
-            continue
-        fields.append(field.name)
-    return fields
 
 
-def _model_form(key, instance=None, data=None, files=None):
-    model=MODEL_MAP[key]
-    Form=modelform_factory(model, fields=_editable_fields(model,key))
-    return Form(data=data, files=files, instance=instance)
 
 
 class ProductImageUploadForm(forms.Form):
@@ -143,44 +306,70 @@ def _save_product_images(product, request):
     return []
 
 def dashboard(request):
-    today=timezone.localdate()
-    paid_statuses=('paid','processing','completed')
-    orders_today=Order.objects.filter(created_at__date=today).count()
-    sales_today=Order.objects.filter(status__in=paid_statuses, created_at__date=today).aggregate(v=Sum('total_amount'))['v'] or 0
-    revenue=Order.objects.filter(status__in=paid_statuses).aggregate(v=Sum('total_amount'))['v'] or 0
-    pending=Order.objects.filter(status='pending').count()
-    processing=Order.objects.filter(status='processing').count()
-    failed_payments=Payment.objects.filter(status='failed').count()
-    low_stock=Product.objects.filter(stock__lte=3).count()
-    available_codes=DigitalCode.objects.filter(is_used=False).count()
-    chart=[]
-    for offset in range(6,-1,-1):
-        day=today-timedelta(days=offset)
-        amount=Order.objects.filter(status__in=paid_statuses,created_at__date=day).aggregate(v=Sum('total_amount'))['v'] or 0
-        chart.append({'label':day.strftime('%m/%d'),'value':int(amount)})
-    max_value=max([x['value'] for x in chart], default=0) or 1
+    if not request.user.is_authenticated:
+        return redirect("/django-admin/login/")
+
+    if not request.user.is_staff:
+        return redirect("/django-admin/login/")
+
+    today = timezone.localdate()
+    paid_statuses = ("paid", "processing", "completed")
+    orders_today = Order.objects.filter(created_at__date=today).count()
+    sales_today = Order.objects.filter(status__in=paid_statuses, created_at__date=today).aggregate(v=Sum("total_amount"))["v"] or 0
+    revenue = Order.objects.filter(status__in=paid_statuses).aggregate(v=Sum("total_amount"))["v"] or 0
+    pending = Order.objects.filter(status="pending").count()
+    processing = Order.objects.filter(status="processing").count()
+    failed_payments = Payment.objects.filter(status="failed").count()
+
+    lowest_variant_stock = Subquery(
+        ProductVariant.objects.filter(product_id=OuterRef("pk"), is_active=True)
+        .order_by("stock", "id")
+        .values("stock")[:1],
+        output_field=IntegerField(),
+    )
+    effective_stock_expr = Coalesce(
+        lowest_variant_stock,
+        F("stock"),
+        output_field=IntegerField(),
+    )
+    stock_products = Product.objects.annotate(effective_stock=effective_stock_expr)
+    low_stock = stock_products.filter(effective_stock__lte=3).count()
+    available_codes = DigitalCode.objects.filter(is_used=False).count()
+
+    chart = []
+    for offset in range(6, -1, -1):
+        day = today - timedelta(days=offset)
+        amount = Order.objects.filter(
+            status__in=paid_statuses, created_at__date=day
+        ).aggregate(v=Sum("total_amount"))["v"] or 0
+        chart.append({"label": day.strftime("%m/%d"), "value": int(amount)})
+    max_value = max((item["value"] for item in chart), default=0) or 1
     for item in chart:
-        item['height']=max(8,int(item['value']*100/max_value))
-    context={
-        'stats': {
-            'sales_today':sales_today, 'orders_today':orders_today, 'pending':pending,
-            'processing':processing, 'revenue':revenue, 'failed_payments':failed_payments,
-            'low_stock':low_stock, 'available_codes':available_codes,
+        item["height"] = max(8, int(item["value"] * 100 / max_value))
+
+    context = {
+        "stats": {
+            "sales_today": sales_today,
+            "orders_today": orders_today,
+            "pending": pending,
+            "processing": processing,
+            "revenue": revenue,
+            "failed_payments": failed_payments,
+            "low_stock": low_stock,
+            "available_codes": available_codes,
         },
-        'chart':chart,
-        'recent_orders':Order.objects.select_related('user').order_by('-created_at','-id')[:8],
-        'recent_payments':Payment.objects.select_related('order').order_by('-created_at','-id')[:8],
-        'attention_orders':Order.objects.select_related('user').filter(status='processing').order_by('-created_at')[:6],
-        'low_stock_products':Product.objects.filter(stock__lte=3).order_by('stock','name')[:6],
-        'nav':ADMIN_NAV,
-        'active':'dashboard',
+        "chart": chart,
+        "recent_orders": Order.objects.select_related("user").order_by("-created_at", "-id")[:8],
+        "recent_payments": Payment.objects.select_related("order").order_by("-created_at", "-id")[:8],
+        "attention_orders": Order.objects.select_related("user").filter(status="processing").order_by("-created_at")[:6],
+        "low_stock_products": stock_products.filter(effective_stock__lte=3).order_by("effective_stock", "name")[:6],
+        "nav": ADMIN_NAV,
+        "active": "dashboard",
     }
-    return render(request,'admin_panel/dashboard.html',context)
-
-dashboard = staff_required(dashboard)
-
+    return render(request, "admin_panel/dashboard.html", context)
 
 def model_list(request,key):
+    _guard_key(request, key)
     qs=_qs_for_key(key)
     if qs is None:
         return redirect('admin_dashboard')
@@ -212,12 +401,13 @@ model_list = staff_required(model_list)
 
 
 def model_create(request,key):
+    _guard_key(request, key, write=True)
     if key not in MODEL_MAP:
         return redirect('admin_dashboard')
-    form=_model_form(key)
+    form=_model_form(key, user=request.user)
     image_errors=[]
     if request.method=='POST':
-        form=_model_form(key,data=request.POST,files=request.FILES)
+        form=_model_form(key,data=request.POST,files=request.FILES,user=request.user)
         if form.is_valid():
             if key=='products':
                 image_errors=_validate_product_images(request.FILES.getlist('product_images'))
@@ -240,14 +430,15 @@ model_create = staff_required(model_create)
 
 
 def model_edit(request,key,pk):
+    _guard_key(request, key, write=True)
     qs=_qs_for_key(key)
     if qs is None:
         return redirect('admin_dashboard')
     obj=get_object_or_404(qs,pk=pk)
-    form=_model_form(key,instance=obj)
+    form=_model_form(key,instance=obj,user=request.user)
     image_errors=[]
     if request.method=='POST':
-        form=_model_form(key,instance=obj,data=request.POST,files=request.FILES)
+        form=_model_form(key,instance=obj,data=request.POST,files=request.FILES,user=request.user)
         if form.is_valid():
             if key=='products':
                 image_errors=_validate_product_images(request.FILES.getlist('product_images'))
@@ -269,12 +460,18 @@ model_edit = staff_required(model_edit)
 
 
 def model_delete(request,key,pk):
+    _guard_key(request, key, write=True)
+    if request.method != "POST":
+        return redirect("admin_model_list", key=key)
     qs=_qs_for_key(key)
     if qs is None:
         return redirect('admin_dashboard')
     obj=get_object_or_404(qs,pk=pk)
     if key=='users' and obj.pk==request.user.pk:
         messages.error(request,'حساب مدیر فعلی قابل حذف نیست.')
+    elif key=='users' and obj.is_superuser and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
     else:
         obj.delete()
         messages.success(request,'مورد با موفقیت حذف شد.')

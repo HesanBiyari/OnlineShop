@@ -1,16 +1,17 @@
-from .admin_panel_views import dashboard, logout_view, model_create, model_delete, model_edit, model_list
+from .admin_panel_views import dashboard, logout_view as admin_logout_view, model_create, model_delete, model_edit, model_list
 from django.urls import path
 
-from .views import account, add_to_cart, cart_view, checkout, clear_cart, home, logout_view, order_detail, orders, product_detail, remove_from_cart, shop, update_cart
+from .views import account, add_to_cart, cart_view, checkout, clear_cart, home, order_detail, orders, product_detail, remove_from_cart, shop, update_cart, logout_view
+from .views import logout_view
 from .auth_flows import login_view, signup_view
 from .payment_flows import payment, payment_callback
 from .static_pages import about, contact, faq, guide, terms, privacy, robots
 from .advanced_views import analytics, codes_export, codes_import, coupon_apply, coupon_remove, loyalty, notifications, referral, referral_apply, review_submit, wishlist, wishlist_toggle
-# GIFTWEB_FINAL_PACKAGE_V1
+
 
 urlpatterns = [
     path('dashboard/', dashboard, name='admin_dashboard'),
-    path('dashboard/logout/', logout_view, name='admin_dashboard_logout'),
+    path("dashboard/logout/", admin_logout_view, name="admin_dashboard_logout"),
     path('dashboard/<str:key>/', model_list, name='admin_model_list'),
     path('dashboard/<str:key>/add/', model_create, name='admin_model_create'),
     path('dashboard/<str:key>/<int:pk>/edit/', model_edit, name='admin_model_edit'),
@@ -38,7 +39,6 @@ urlpatterns = [
     path("checkout/", checkout, name="checkout"),
     path("payment/<int:order_id>/", payment, name="payment"),
     path("payment/<int:order_id>/callback/", payment_callback, name="payment_callback"),
-    path("payment/<int:order_id>/success/", payment_callback, name="payment_success"),
     path("orders/", orders, name="orders"),
     path("orders/<int:order_id>/", order_detail, name="order_detail"),
     path('wishlist/', wishlist, name='wishlist'),

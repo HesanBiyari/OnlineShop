@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import logging
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.conf import settings
 from django.utils import timezone
 
+from .advanced_services import finalize_advanced_order, release_coupon_for_order
 from .models import Order, Payment, Product, ProductVariant
 from .payment_gateway import get_gateway
 from .utils import deliver_digital_codes
-from .advanced_services import finalize_advanced_order, release_coupon_for_order
-# GIFTWEB_FINAL_PACKAGE_V1
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -22,7 +25,11 @@ def payment(request, order_id):
         return redirect("order_detail", order_id=order.id)
     payment_record, _ = Payment.objects.get_or_create(
         order=order,
-        defaults={"amount": order.total_amount, "currency": getattr(settings, "PAYMENT_CURRENCY", "IRR").upper()},
+        defaults={
+            "amount": order.total_amount,
+            "currency": getattr(settings, "PAYMENT_CURRENCY", "IRR").upper(),
+            "gateway": getattr(settings, "PAYMENT_GATEWAY", "zarinpal"),
+        },
     )
     try:
         gateway = get_gateway()
@@ -39,107 +46,31 @@ def payment(request, order_id):
             email=order.email,
         )
     except Exception as exc:
-        result = type("GatewayError", (), {"ok": False, "code": "APP", "message": str(exc), "authority": "", "reference_id": "", "redirect_url": ""})()
+        logger.exception("Payment creation failed for order %s", order.id)
+        result = type("GatewayError", (), {
+            "ok": False, "code": "APP", "message": str(exc),
+            "authority": "", "reference_id": "", "redirect_url": "",
+        })()
+
     if result.ok:
         payment_record.amount = order.total_amount
         payment_record.currency = getattr(settings, "PAYMENT_CURRENCY", "IRR").upper()
+        payment_record.gateway = getattr(settings, "PAYMENT_GATEWAY", "zarinpal")
         payment_record.authority = result.authority
         payment_record.gateway_code = result.code
         payment_record.gateway_message = result.message
         payment_record.status = "redirected"
-        payment_record.save(update_fields=["amount", "currency", "authority", "gateway_code", "gateway_message", "status", "updated_at"])
+        payment_record.save(update_fields=[
+            "amount", "currency", "gateway", "authority", "gateway_code",
+            "gateway_message", "status", "updated_at",
+        ])
         return redirect(result.redirect_url)
+
     payment_record.status = "failed"
     payment_record.gateway_code = result.code
     payment_record.gateway_message = result.message
     payment_record.save(update_fields=["status", "gateway_code", "gateway_message", "updated_at"])
     return render(request, "payment.html", {"order": order, "payment_error": result.message})
-
-
-def payment_callback(request, order_id):
-    authority = request.GET.get("Authority", "").strip()
-    status = request.GET.get("Status", "").upper()
-    order = get_object_or_404(Order, pk=order_id)
-    if order.status in {"paid", "processing", "completed"}:
-        return _after_callback(request, order)
-    if not authority or status != "OK":
-        Payment.objects.filter(order=order).update(status="canceled", gateway_code=status or "NOK", gateway_message="پرداخت توسط کاربر تکمیل نشد.")
-        if request.user.is_authenticated and request.user.id == order.user_id:
-            messages.warning(request, "پرداخت کامل نشد. می‌توانی دوباره تلاش کنی.")
-            return redirect("payment", order_id=order.id)
-        return render(request, "payment_result.html", {"order": order, "success": False, "message": "پرداخت تکمیل نشد."})
-    try:
-        with transaction.atomic():
-            locked_order = get_object_or_404(Order.objects.select_for_update(), pk=order.id)
-            payment_record = get_object_or_404(Payment.objects.select_for_update(), order=locked_order)
-            if payment_record.authority != authority:
-                payment_record.status = "failed"
-                payment_record.gateway_code = "AUTHORITY_MISMATCH"
-                payment_record.gateway_message = "شناسه تراکنش با سفارش مطابقت ندارد."
-                payment_record.save(update_fields=["status", "gateway_code", "gateway_message", "updated_at"])
-                return render(request, "payment_result.html", {"order": locked_order, "success": False, "message": "تراکنش با این سفارش مطابقت ندارد."})
-            payment_record.status = "verifying"
-            payment_record.save(update_fields=["status", "updated_at"])
-            result = get_gateway().verify_payment(amount_toman=locked_order.total_amount, authority=authority)
-            if not result.ok:
-                if getattr(locked_order, "coupon_redemption", None):
-                    release_coupon_for_order(locked_order)
-                payment_record.status = "failed"
-                payment_record.gateway_code = result.code
-                payment_record.gateway_message = result.message
-                payment_record.save(update_fields=["status", "gateway_code", "gateway_message", "updated_at"])
-                return render(request, "payment_result.html", {"order": locked_order, "success": False, "message": result.message})
-            now = timezone.now()
-            payment_record.status = "paid"
-            payment_record.reference_id = result.reference_id
-            payment_record.gateway_code = result.code
-            payment_record.gateway_message = result.message
-            payment_record.paid_at = now
-            payment_record.save(update_fields=["status", "reference_id", "gateway_code", "gateway_message", "paid_at", "updated_at"])
-            if locked_order.status == "pending":
-                items = list(locked_order.items.select_related("product", "variant"))
-                stock_ok = True
-                locked_variants = []
-                locked_products = []
-                for item in items:
-                    if item.variant_id:
-                        variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
-                        locked_variants.append((variant, item))
-                        if not variant.is_active or variant.stock < item.quantity:
-                            stock_ok = False
-                    else:
-                        product = Product.objects.select_for_update().get(pk=item.product_id)
-                        locked_products.append((product, item))
-                        if product.stock < item.quantity:
-                            stock_ok = False
-                if stock_ok:
-                    for variant, item in locked_variants:
-                        variant.stock -= item.quantity
-                        variant.save(update_fields=["stock"])
-                    for product, item in locked_products:
-                        product.stock -= item.quantity
-                        product.save(update_fields=["stock"])
-                    locked_order.status = "paid"
-                else:
-                    # Payment succeeded, but inventory changed while the buyer was at the gateway.
-                    # Keep the order paid/processing rather than fabricating a failed payment.
-                    locked_order.status = "processing"
-                locked_order.payment_ref = result.reference_id or authority
-                locked_order.paid_at = now
-                locked_order.save(update_fields=["status", "payment_ref", "paid_at"])
-                delivered = deliver_digital_codes(locked_order)
-                if locked_order.status == "paid":
-                    finalize_advanced_order(locked_order)
-                    locked_order.status = "completed" if delivered else "processing"
-                    locked_order.save(update_fields=["status"])
-        if request.user.is_authenticated and request.user.id == order.user_id:
-            request.session["cart"] = {}
-            request.session.modified = True
-            messages.success(request, "پرداخت با موفقیت تأیید شد.")
-            return redirect("order_detail", order_id=order.id)
-        return render(request, "payment_result.html", {"order": order, "success": True, "message": "پرداخت با موفقیت تأیید شد."})
-    except Exception as exc:
-        return render(request, "payment_result.html", {"order": order, "success": False, "message": "در تأیید پرداخت مشکلی رخ داد. اگر مبلغ از حساب شما کسر شده، سفارش شما بررسی خواهد شد."})
 
 
 def _after_callback(request, order):
@@ -148,3 +79,152 @@ def _after_callback(request, order):
         request.session.modified = True
         return redirect("order_detail", order_id=order.id)
     return redirect(f"{reverse('login')}?next={reverse('order_detail', args=[order.id])}")
+
+
+def payment_callback(request, order_id):
+    order = get_object_or_404(Order, pk=order_id)
+    payment_record = get_object_or_404(Payment, order=order)
+
+    if order.status in {"paid", "processing", "completed"}:
+        return _after_callback(request, order)
+
+    authority = request.GET.get("Authority", "").strip()
+    gateway_status = request.GET.get("Status", "").upper()
+
+    # Never mutate a payment without the exact authority issued for it.
+    if not authority:
+        return render(request, "payment_result.html", {
+            "order": order, "success": False,
+            "message": "اطلاعات بازگشت از درگاه ناقص است.",
+        })
+    if payment_record.authority != authority:
+        return render(request, "payment_result.html", {
+            "order": order, "success": False,
+            "message": "تراکنش با این سفارش مطابقت ندارد.",
+        })
+
+    if gateway_status != "OK":
+        with transaction.atomic():
+            locked_order = get_object_or_404(Order.objects.select_for_update(), pk=order.id)
+            locked_payment = get_object_or_404(Payment.objects.select_for_update(), order=locked_order)
+            if locked_order.status in {"paid", "processing", "completed"}:
+                return _after_callback(request, locked_order)
+            if locked_payment.authority != authority:
+                return render(request, "payment_result.html", {
+                    "order": locked_order, "success": False,
+                    "message": "تراکنش با این سفارش مطابقت ندارد.",
+                })
+            release_coupon_for_order(locked_order)
+            locked_payment.status = "canceled"
+            locked_payment.gateway_code = gateway_status or "NOK"
+            locked_payment.gateway_message = "پرداخت توسط کاربر تکمیل نشد."
+            locked_payment.save(update_fields=["status", "gateway_code", "gateway_message", "updated_at"])
+        if request.user.is_authenticated and request.user.id == order.user_id:
+            messages.warning(request, "پرداخت کامل نشد. می‌توانی دوباره تلاش کنی.")
+            return redirect("payment", order_id=order.id)
+        return render(request, "payment_result.html", {
+            "order": order, "success": False, "message": "پرداخت تکمیل نشد.",
+        })
+
+    try:
+        with transaction.atomic():
+            locked_order = get_object_or_404(Order.objects.select_for_update(), pk=order.id)
+            payment_record = get_object_or_404(Payment.objects.select_for_update(), order=locked_order)
+
+            if locked_order.status in {"paid", "processing", "completed"}:
+                return _after_callback(request, locked_order)
+            if payment_record.authority != authority:
+                return render(request, "payment_result.html", {
+                    "order": locked_order, "success": False,
+                    "message": "تراکنش با این سفارش مطابقت ندارد.",
+                })
+
+            payment_record.status = "verifying"
+            payment_record.save(update_fields=["status", "updated_at"])
+            result = get_gateway().verify_payment(
+                amount_toman=locked_order.total_amount,
+                authority=authority,
+            )
+
+            if not result.ok:
+                release_coupon_for_order(locked_order)
+                payment_record.status = "failed"
+                payment_record.gateway_code = result.code
+                payment_record.gateway_message = result.message
+                payment_record.save(update_fields=[
+                    "status", "gateway_code", "gateway_message", "updated_at"
+                ])
+                return render(request, "payment_result.html", {
+                    "order": locked_order, "success": False, "message": result.message,
+                })
+
+            now = timezone.now()
+            payment_record.status = "paid"
+            payment_record.reference_id = result.reference_id
+            payment_record.gateway_code = result.code
+            payment_record.gateway_message = result.message
+            payment_record.paid_at = now
+            payment_record.save(update_fields=[
+                "status", "reference_id", "gateway_code", "gateway_message", "paid_at", "updated_at"
+            ])
+
+            items = list(locked_order.items.select_related("product", "variant"))
+            stock_ok = True
+            locked_variants = []
+            locked_products = []
+            for item in items:
+                if item.variant_id:
+                    variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
+                    locked_variants.append((variant, item))
+                    if not variant.is_active or variant.stock < item.quantity:
+                        stock_ok = False
+                else:
+                    product = Product.objects.select_for_update().get(pk=item.product_id)
+                    locked_products.append((product, item))
+                    if product.stock < item.quantity:
+                        stock_ok = False
+
+            locked_order.payment_ref = result.reference_id or authority
+            locked_order.paid_at = now
+
+            if not stock_ok:
+                # Paid transaction + missing inventory is a fulfillment/reconciliation case.
+                # Do not consume inventory that is not present and do not deliver a digital code.
+                locked_order.status = "processing"
+                locked_order.save(update_fields=["status", "payment_ref", "paid_at"])
+            else:
+                for variant, item in locked_variants:
+                    variant.stock -= item.quantity
+                    variant.save(update_fields=["stock"])
+                for product, item in locked_products:
+                    product.stock -= item.quantity
+                    product.save(update_fields=["stock"])
+
+                locked_order.status = "paid"
+                locked_order.save(update_fields=["status", "payment_ref", "paid_at"])
+                delivered = deliver_digital_codes(locked_order)
+                finalize_advanced_order(locked_order)
+                locked_order.status = "completed" if delivered else "processing"
+                locked_order.save(update_fields=["status"])
+
+        if request.user.is_authenticated and request.user.id == order.user_id:
+            request.session["cart"] = {}
+            request.session.modified = True
+            if order.status == "processing":
+                messages.warning(request, "پرداخت تأیید شد و سفارش برای تکمیل در حال پردازش است.")
+            else:
+                messages.success(request, "پرداخت با موفقیت تأیید شد.")
+            return redirect("order_detail", order_id=order.id)
+
+        return render(request, "payment_result.html", {
+            "order": order,
+            "success": True,
+            "message": "پرداخت با موفقیت تأیید شد.",
+        })
+    except Exception:
+        logger.exception("Payment callback failed for order %s", order.id)
+        return render(request, "payment_result.html", {
+            "order": order,
+            "success": False,
+            "message": "در تأیید پرداخت مشکلی رخ داد. اگر مبلغ از حساب شما کسر شده، سفارش شما بررسی خواهد شد.",
+        })

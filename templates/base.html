@@ -8,47 +8,11 @@
   <meta name="color-scheme" content="dark">
   <title>{% block title %}Giftbaaz{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}فروشگاه حرفه‌ای محصولات دیجیتال و گیفت کارت{% endblock %}">
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-<meta property="og:title" content="{% block og_title %}Giftbaaz{% endblock %}">
-<meta property="og:description" content="{% block og_description %}فروشگاه محصولات دیجیتال و گیفت کارت{% endblock %}">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-<meta property="og:type" content="website">
-
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-<meta property="og:title" content="">
-<meta property="og:description" content="">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-<meta property="og:type" content="website">
-
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-<meta property="og:title" content="">
-<meta property="og:description" content="">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-<meta property="og:type" content="website">
-
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-<meta property="og:title" content="">
-<meta property="og:description" content="">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-<meta property="og:type" content="website">
-
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-<meta property="og:title" content="">
-<meta property="og:description" content="">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-<meta property="og:type" content="website">
-
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-<meta property="og:title" content="">
-<meta property="og:description" content="">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-<meta property="og:type" content="website">
-
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-<meta property="og:title" content="">
-<meta property="og:description" content="">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
-<meta property="og:type" content="website">
+  <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+  <meta property="og:title" content="{% block og_title %}Giftbaaz{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}فروشگاه محصولات دیجیتال و گیفت کارت{% endblock %}">
+  <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+  <meta property="og:type" content="website">
 
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   {% block extra_head %}{% endblock %}

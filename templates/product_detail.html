@@ -1,55 +1,135 @@
 {% extends "base.html" %}
-{% block title %}{{ product.name }} | Giftbaaz
-<section class="advanced-product-panel">
-{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
-<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
-{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
-</section>
 
-<section class="advanced-product-panel">
-{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
-<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
-{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
-</section>
+{% block title %}{{ product.name }} | Giftbaaz{% endblock %}
+{% block meta_description %}{{ product.description|striptags|truncatechars:160 }}{% endblock %}
+{% block og_title %}{{ product.name }} | Giftbaaz{% endblock %}
+{% block og_description %}{{ product.description|striptags|truncatechars:200 }}{% endblock %}
 
-<section class="advanced-product-panel">
-{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
-<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
-{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
-</section>
-
-<section class="advanced-product-panel">
-{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
-<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
-{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
-</section>
-
-<section class="advanced-product-panel">
-{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
-<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
-{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
-</section>
-
-<section class="advanced-product-panel">
-{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
-<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
-{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
-</section>
-
-<section class="advanced-product-panel">
-{% if user.is_authenticated %}<form method="post" action="{% url 'wishlist_toggle' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'product_detail' product.id %}"><button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button></form>{% endif %}
-<h2>نظرات کاربران ({{ review_count }})</h2>{% for r in reviews %}<article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>{% empty %}<p>هنوز نظری ثبت نشده است.</p>{% endfor %}
-{% if user.is_authenticated %}<form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">{% csrf_token %}<label>امتیاز<select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>عنوان<input name="title" maxlength="120"></label><label>نظر<textarea name="body" maxlength="2000" required></textarea></label><button class="btn btn-primary">ثبت نظر</button></form>{% endif %}
-</section>
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "{{ product.name|escapejs }}",
+  "description": "{{ product.description|striptags|escapejs }}",
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "{{ structured_currency }}",
+    "price": "{{ structured_price }}",
+    "availability": "{% if product.catalog_has_stock %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
+    "url": "{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"
+  }
+}
+</script>
 {% endblock %}
-{% block extra_head %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"{{ product.name|escapejs }}","description":"{{ product.description|striptags|escapejs }}","offers":{"@type":"Offer","priceCurrency":"IRR","price":"{{ product.catalog_price }}","availability":"{% if product.catalog_has_stock %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}","url":"{{ request.build_absolute_uri }}"}}</script>{% endblock %}
+
 {% block content %}
-<section class="section product-page"><div class="container"><div class="product-detail-grid">
-<div class="gallery-card" data-product-gallery><div class="product-main-media">{% with image=product.display_images|first %}{% if image %}<img data-gallery-main src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">{% else %}<div class="product-placeholder">✦</div>{% endif %}{% endwith %}</div>{% if product.display_images %}<div class="product-thumbnails">{% for image in product.display_images %}<button type="button" class="product-thumbnail{% if forloop.first %} is-active{% endif %}" data-gallery-thumb data-image-url="{{ image.image.url }}" data-image-alt="{{ image.alt_text|default:product.name }}"><img src="{{ image.image.url }}" alt="" loading="lazy"></button>{% endfor %}</div>{% endif %}</div>
-<div class="product-info-panel">{% if product.category %}<span class="eyebrow">{{ product.category.name }}</span>{% endif %}<h1>{{ product.name }}</h1><div class="product-description">{{ product.description|linebreaksbr }}</div>
-<div class="detail-price" data-detail-price>{% if product.catalog_old_price %}<del>{{ product.catalog_old_price|floatformat:0 }} تومان</del>{% endif %}<strong>{% if variants %}شروع از {% endif %}<span data-price-value>{{ product.catalog_price|floatformat:0 }}</span> <small>تومان</small></strong></div>
-{% if variants %}<div class="variant-panel"><div class="variant-panel-head"><div><span class="eyebrow">انتخاب گزینه</span><h3>مدل موردنظر را انتخاب کن</h3></div><span class="variant-help">موجودی دقیق هر مدل همین‌جا نمایش داده می‌شود.</span></div><div class="variant-options">{% for variant in variants %}<button type="button" class="variant-option{% if not variant.stock %} is-disabled{% endif %}" data-variant-id="{{ variant.id }}" data-price="{{ variant.final_price }}" data-stock="{{ variant.stock }}" {% if not variant.stock %}disabled{% endif %}><span class="variant-option-main"><strong>{{ variant.name }}</strong><small>SKU: {{ variant.sku }}</small></span><span class="variant-option-side"><b>{{ variant.final_price|floatformat:0 }} تومان</b>{% if variant.stock > 0 %}<em>{{ variant.stock }} عدد موجود</em>{% else %}<em>ناموجود</em>{% endif %}</span></button>{% endfor %}</div></div>{% endif %}
-<div class="product-stock-summary">{% if variants %}<span>{{ variants|length }} گزینه • موجودی هر گزینه بالا مشخص شده</span>{% elif product.stock > 0 %}<span class="available">● {{ product.stock }} عدد موجود</span>{% else %}<span class="unavailable">● ناموجود</span>{% endif %}</div>
-<form class="buy-form" method="post" action="{% url 'add_to_cart' product.pk %}" data-buy-form>{% csrf_token %}{% if variants %}<input type="hidden" name="variant_id" value="" data-selected-variant><p class="selection-note" data-selection-note>یک مدل را انتخاب کن.</p>{% endif %}<div class="qty-field"><label for="quantity">تعداد</label><input id="quantity" type="number" name="quantity" value="1" min="1" inputmode="numeric"></div><button class="btn btn-primary btn-wide" type="submit" {% if not product.catalog_has_stock %}disabled{% endif %}>افزودن به سبد <span>←</span></button></form><div class="mini-trust"><span>🔒 خرید امن</span><span>⚡ تحویل دیجیتال</span><span>↗ قابل پیگیری</span></div>
-</div></div>{% if related_products %}<div class="related"><div class="section-head"><div><span class="eyebrow">پیشنهاد مرتبط</span><h2>محصولات مشابه</h2></div></div><div class="product-grid">{% for related in related_products %}{% include "partials/product_card.html" with product=related %}{% endfor %}</div></div>{% endif %}</div></section>
+<section class="section product-page">
+  <div class="container">
+    <div class="product-detail-grid">
+      <div class="gallery-card" data-product-gallery>
+        <div class="product-main-media">
+          {% with image=product.display_images|first %}
+            {% if image %}
+              <img data-gallery-main src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
+            {% else %}
+              <div class="product-placeholder">✦</div>
+            {% endif %}
+          {% endwith %}
+        </div>
+        {% if product.display_images %}
+          <div class="product-thumbnails">
+            {% for image in product.display_images %}
+              <button type="button" class="product-thumbnail{% if forloop.first %} is-active{% endif %}" data-gallery-thumb data-image-url="{{ image.image.url }}" data-image-alt="{{ image.alt_text|default:product.name }}">
+                <img src="{{ image.image.url }}" alt="" loading="lazy">
+              </button>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="product-info-panel">
+        {% if product.category %}<span class="eyebrow">{{ product.category.name }}</span>{% endif %}
+        <h1>{{ product.name }}</h1>
+        <div class="product-description">{{ product.description|linebreaksbr }}</div>
+
+        <div class="detail-price" data-detail-price>
+          {% if product.catalog_old_price %}<del>{{ product.catalog_old_price|floatformat:0 }} تومان</del>{% endif %}
+          <strong>{% if variants %}شروع از {% endif %}<span data-price-value>{{ product.catalog_price|floatformat:0 }}</span> <small>تومان</small></strong>
+        </div>
+
+        {% if variants %}
+        <div class="variant-panel">
+          <div class="variant-panel-head">
+            <div><span class="eyebrow">انتخاب گزینه</span><h3>مدل موردنظر را انتخاب کن</h3></div>
+            <span class="variant-help">موجودی دقیق هر مدل همین‌جا نمایش می‌شود.</span>
+          </div>
+          <div class="variant-options">
+            {% for variant in variants %}
+            <button type="button" class="variant-option{% if not variant.stock %} is-disabled{% endif %}" data-variant-id="{{ variant.id }}" data-price="{{ variant.final_price }}" data-stock="{{ variant.stock }}" {% if not variant.stock %}disabled{% endif %}>
+              <span class="variant-option-main"><strong>{{ variant.name }}</strong><small>SKU: {{ variant.sku }}</small></span>
+              <span class="variant-option-side"><b>{{ variant.final_price|floatformat:0 }} تومان</b>{% if variant.stock > 0 %}<em>{{ variant.stock }} عدد موجود</em>{% else %}<em>ناموجود</em>{% endif %}</span>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="product-stock-summary">
+          {% if variants %}
+            <span>{{ variants|length }} گزینه • موجودی هر گزینه بالا مشخص شده</span>
+          {% elif product.stock > 0 %}
+            <span class="available">● {{ product.stock }} عدد موجود</span>
+          {% else %}
+            <span class="unavailable">● ناموجود</span>
+          {% endif %}
+        </div>
+
+        <form class="buy-form" method="post" action="{% url 'add_to_cart' product.pk %}" data-buy-form>
+          {% csrf_token %}
+          {% if variants %}<input type="hidden" name="variant_id" value="" data-selected-variant><p class="selection-note" data-selection-note>یک مدل را انتخاب کن.</p>{% endif %}
+          <div class="qty-field"><label for="quantity">تعداد</label><input id="quantity" type="number" name="quantity" value="1" min="1" inputmode="numeric"></div>
+          <button class="btn btn-primary btn-wide" type="submit" {% if not product.catalog_has_stock %}disabled{% endif %}>افزودن به سبد <span>←</span></button>
+        </form>
+        <div class="mini-trust"><span>🔒 خرید امن</span><span>⚡ تحویل دیجیتال</span><span>↗ قابل پیگیری</span></div>
+      </div>
+    </div>
+
+    {% if related_products %}
+    <div class="related">
+      <div class="section-head"><div><span class="eyebrow">پیشنهاد مرتبط</span><h2>محصولات مشابه</h2></div></div>
+      <div class="product-grid">
+        {% for related in related_products %}{% include "partials/product_card.html" with product=related %}{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <section class="advanced-product-panel">
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'wishlist_toggle' product.id %}" class="advanced-actions">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'product_detail' product.id %}">
+        <button class="btn btn-secondary" type="submit">{% if wished %}♥ حذف از علاقه‌مندی{% else %}♡ افزودن به علاقه‌مندی{% endif %}</button>
+      </form>
+      {% endif %}
+
+      <h2>نظرات کاربران ({{ review_count }})</h2>
+      {% for r in reviews %}
+        <article class="review-card"><strong>{{ r.user.username }}</strong> · ★ {{ r.rating }}/5{% if r.title %}<h3>{{ r.title }}</h3>{% endif %}<p>{{ r.body }}</p></article>
+      {% empty %}
+        <p>هنوز نظری ثبت نشده است.</p>
+      {% endfor %}
+
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'review_submit' product.id %}" class="styled-form">
+        {% csrf_token %}
+        <label>امتیاز<select name="rating"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select></label>
+        <label>عنوان<input name="title" maxlength="120"></label>
+        <label>نظر<textarea name="body" maxlength="2000" required></textarea></label>
+        <button class="btn btn-primary" type="submit">ثبت نظر</button>
+      </form>
+      {% endif %}
+    </section>
+  </div>
+</section>
 {% endblock %}

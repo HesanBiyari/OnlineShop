@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -26,9 +27,8 @@ from .models import (
     ProductVariant,
 )
 from .utils import deliver_digital_codes, get_item_price, get_item_stock
-from .advanced_models import Review, Wishlist
+from .advanced_models import Review, Wishlist, Coupon, CouponRedemption
 from .advanced_services import record_recent_view
-# GIFTWEB_FINAL_PACKAGE_V1
 
 
 def active_discount_q(now=None):
@@ -198,7 +198,22 @@ def product_detail(request, pk):
     record_recent_view(request, product)
     reviews = Review.objects.filter(product=product, is_approved=True).select_related("user")[:10]
     wished = request.user.is_authenticated and Wishlist.objects.filter(user=request.user, product=product).exists()
-    return render(request, "product_detail.html", {"product": product, "variants": variants, "related_products": related_products, "reviews": reviews, "review_count": Review.objects.filter(product=product, is_approved=True).count(), "wished": wished})
+    structured_currency = str(getattr(settings, "PAYMENT_CURRENCY", "IRR")).upper()
+    structured_price = product.catalog_price * 10 if structured_currency == "IRR" else product.catalog_price
+    return render(
+        request,
+        "product_detail.html",
+        {
+            "product": product,
+            "variants": variants,
+            "related_products": related_products,
+            "reviews": reviews,
+            "review_count": Review.objects.filter(product=product, is_approved=True).count(),
+            "wished": wished,
+            "structured_currency": structured_currency,
+            "structured_price": structured_price,
+        },
+    )
 
 
 def signup_view(request):
@@ -372,8 +387,6 @@ def get_cart_items(request, *, lock=False):
     return items, total
 
 
-@login_required if False else lambda f: f
-
 def cart_view(request):
     items, total = get_cart_items(request)
     return render(request, "cart.html", {"items": items, "total": total})
@@ -508,23 +521,36 @@ def checkout(request):
                     messages.error(request, "سبد خرید شما دیگر موجود نیست.")
                     return redirect("cart")
 
+                coupon = None
+                coupon_discount = 0
+                coupon_code = str(request.session.get("coupon_code") or "").strip().upper()
+                if coupon_code:
+                    coupon = Coupon.objects.select_for_update().filter(code=coupon_code).first()
+                    if coupon and coupon.is_valid_now:
+                        coupon_discount = coupon.discount_for(locked_total)
+                    if not coupon or not coupon_discount:
+                        request.session.pop("coupon_code", None)
+                        request.session.pop("coupon_discount", None)
+                        request.session.modified = True
+                        messages.error(request, "کد تخفیف دیگر برای این سبد معتبر نیست.")
+                        return redirect("checkout")
+
                 order = Order.objects.create(
                     user=request.user,
                     full_name=form.cleaned_data["full_name"],
                     email=form.cleaned_data["email"],
                     phone=form.cleaned_data["phone"],
-                    total_amount=max(0, locked_total - int(request.session.get("coupon_discount", 0) or 0)),
+                    total_amount=max(0, locked_total - coupon_discount),
                 )
-                if request.session.get("coupon_code"):
-                    from .advanced_models import Coupon, CouponRedemption
-                    coupon = Coupon.objects.filter(code=request.session.get("coupon_code")).first()
-                    if coupon and int(request.session.get("coupon_discount", 0) or 0):
-                        coupon = Coupon.objects.select_for_update().filter(pk=coupon.pk).first()
-                        if not coupon or not coupon.is_valid_now:
-                            raise ValueError("Coupon became invalid before checkout.")
-                        coupon.used_count += 1
-                        coupon.save(update_fields=["used_count"])
-                        CouponRedemption.objects.create(coupon=coupon, order=order, user=request.user, amount=int(request.session.get("coupon_discount", 0) or 0))
+                if coupon:
+                    coupon.used_count += 1
+                    coupon.save(update_fields=["used_count"])
+                    CouponRedemption.objects.create(
+                        coupon=coupon, order=order, user=request.user, amount=coupon_discount
+                    )
+                    request.session.pop("coupon_code", None)
+                    request.session.pop("coupon_discount", None)
+                    request.session.modified = True
                 OrderItem.objects.bulk_create(
                     [
                         OrderItem(
@@ -564,82 +590,6 @@ def payment(request, order_id):
     if order.status != "pending":
         return redirect("order_detail", order_id=order.id)
     return render(request, "payment.html", {"order": order})
-
-
-@login_required
-@require_POST
-def payment_success(request, order_id):
-    # LOCAL/DEMO payment completion only. A real gateway callback must verify the gateway result.
-    with transaction.atomic():
-        order = get_object_or_404(
-            Order.objects.select_for_update(),
-            pk=order_id,
-            user=request.user,
-        )
-        if order.status != "pending":
-            return redirect("order_detail", order_id=order.id)
-
-        for item in order.items.select_related("product", "variant"):
-            if item.variant_id:
-                variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
-                if not variant.is_active or variant.stock < item.quantity:
-                    order.status = "canceled"
-                    order.save(update_fields=["status"])
-                    messages.error(request, "موجودی یکی از گزینه‌های محصول دیگر کافی نیست.")
-                    return redirect("cart")
-                variant.stock -= item.quantity
-                variant.save(update_fields=["stock"])
-            else:
-                product = Product.objects.select_for_update().get(pk=item.product_id)
-                if product.stock < item.quantity:
-                    order.status = "canceled"
-                    order.save(update_fields=["status"])
-                    messages.error(request, "موجودی یکی از محصولات دیگر کافی نیست.")
-                    return redirect("cart")
-                product.stock -= item.quantity
-                product.save(update_fields=["stock"])
-
-        now = timezone.now()
-        if not order.payment_ref:
-            order.payment_ref = f"DEMO-{order.id}-{int(now.timestamp())}"
-        if not order.paid_at:
-            order.paid_at = now
-        order.status = "paid"
-        order.save(update_fields=["status", "payment_ref", "paid_at"])
-
-        payment_record, _ = Payment.objects.get_or_create(
-            order=order,
-            defaults={
-                "amount": order.total_amount,
-                "currency": str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_CURRENCY", "IRR")).upper(),
-                "gateway": str(getattr(__import__("django.conf", fromlist=["settings"]).settings, "PAYMENT_GATEWAY", "zarinpal")),
-            },
-        )
-        payment_record.status = "paid"
-        payment_record.amount = order.total_amount
-        payment_record.reference_id = order.payment_ref
-        payment_record.paid_at = now
-        payment_record.gateway_code = "DEMO"
-        payment_record.gateway_message = "Local/demo payment completed."
-        payment_record.save(
-            update_fields=[
-                "status",
-                "amount",
-                "reference_id",
-                "paid_at",
-                "gateway_code",
-                "gateway_message",
-                "updated_at",
-            ]
-        )
-
-        delivered = deliver_digital_codes(order)
-        order.status = "completed" if delivered else "processing"
-        order.save(update_fields=["status"])
-
-    request.session["cart"] = {}
-    request.session.modified = True
-    return redirect("order_detail", order_id=order.id)
 
 
 @login_required

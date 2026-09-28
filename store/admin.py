@@ -115,7 +115,7 @@ class PaymentAdmin(admin.ModelAdmin):
     @admin.display(description="مبلغ")
     def amount_display(self, obj):
         return f"{obj.amount:,} تومان"
-# GIFTWEB_FINAL_PACKAGE_V1
+
 from .advanced_models import Coupon,CouponRedemption,LoyaltyAccount,LoyaltyTransaction,Notification,RecentlyViewed,Referral,Review,Wishlist
 for _m in (Coupon,CouponRedemption,LoyaltyAccount,LoyaltyTransaction,Notification,RecentlyViewed,Referral,Review,Wishlist):
     try: admin.site.register(_m)

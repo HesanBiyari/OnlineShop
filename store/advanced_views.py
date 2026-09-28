@@ -1,12 +1,14 @@
-# GIFTWEB_FINAL_PACKAGE_V1
 from __future__ import annotations
 import csv,io
 from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404,redirect,render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.http import require_GET,require_POST
 from .advanced_models import Coupon,Notification,Review,Referral,Wishlist
@@ -19,7 +21,14 @@ def wishlist_toggle(request,product_id):
     p=get_object_or_404(Product,pk=product_id); x,created=Wishlist.objects.get_or_create(user=request.user,product=p)
     if not created:x.delete();messages.success(request,'از علاقه‌مندی‌ها حذف شد.')
     else:messages.success(request,'به علاقه‌مندی‌ها اضافه شد.')
-    return redirect(request.POST.get('next') or 'product_detail',pk=p.pk) if not request.POST.get('next') else redirect(request.POST['next'])
+    next_url = request.POST.get("next", "").strip()
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+    return redirect("product_detail", pk=p.pk)
 
 @login_required
 def wishlist(request):
@@ -86,19 +95,48 @@ def codes_export(request):
 
 @staff_member_required
 def codes_import(request):
-    if request.method=='POST':
-        f=request.FILES.get('file')
-        if not f:messages.error(request,'CSV انتخاب نشده است.');return redirect('codes_import')
-        created=dupes=0
-        for row in csv.DictReader(io.StringIO(f.read().decode('utf-8-sig'))):
-            code=(row.get('code') or '').strip()
-            if not code:continue
-            if DigitalCode.objects.filter(code=code).exists():dupes+=1;continue
-            try:pid=int(row['product_id']);vid=int(row['variant_id']) if row.get('variant_id') else None
-            except (KeyError,ValueError):continue
-            DigitalCode.objects.create(code=code,pin=(row.get('pin') or '').strip(),product_id=pid,variant_id=vid);created+=1
-        messages.success(request,f'{created} کد وارد شد؛ {dupes} تکراری نادیده گرفته شد.');return redirect('codes_import')
-    return render(request,'admin_tools/codes_import.html')
+    if request.method == "POST":
+        uploaded = request.FILES.get("file")
+        if not uploaded:
+            messages.error(request, "CSV انتخاب نشده است.")
+            return redirect("codes_import")
+        try:
+            decoded = uploaded.read().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            messages.error(request, "فایل CSV باید UTF-8 باشد.")
+            return redirect("codes_import")
+
+        created = duplicates = invalid = 0
+        with transaction.atomic():
+            for row in csv.DictReader(io.StringIO(decoded)):
+                code = (row.get("code") or "").strip()
+                if not code:
+                    invalid += 1
+                    continue
+                if DigitalCode.objects.filter(code=code).exists():
+                    duplicates += 1
+                    continue
+                try:
+                    product_id = int(row["product_id"])
+                    variant_id = int(row["variant_id"]) if row.get("variant_id") else None
+                    obj = DigitalCode(
+                        code=code,
+                        pin=(row.get("pin") or "").strip(),
+                        product_id=product_id,
+                        variant_id=variant_id,
+                    )
+                    obj.full_clean()
+                    obj.save()
+                    created += 1
+                except (KeyError, TypeError, ValueError, ValidationError):
+                    invalid += 1
+
+        messages.success(
+            request,
+            f"{created} کد وارد شد؛ {duplicates} تکراری و {invalid} ردیف نامعتبر نادیده گرفته شد.",
+        )
+        return redirect("codes_import")
+    return render(request, "admin_tools/codes_import.html")
 
 @staff_member_required
 def analytics(request):

@@ -1,7 +1,98 @@
-{% extends 'admin_panel/base.html' %}{% block title %}داشبورد | Giftbaaz{% endblock %}{% block content %}
-<div class="gw-heading"><div><span>مرکز کنترل Giftbaaz</span><h1>داشبورد فروشگاه</h1><p>فروش، سفارش، پرداخت و موجودی را یک‌جا ببین.</p></div><a class="gw-primary" href="{% url 'admin_model_create' 'products' %}">＋ افزودن محصول</a></div>
-<div class="gw-kpis"><div><small>فروش امروز</small><strong>{{ stats.sales_today|floatformat:0 }}</strong><span>تومان</span></div><div><small>سفارش امروز</small><strong>{{ stats.orders_today }}</strong><span>سفارش</span></div><div><small>در انتظار پرداخت</small><strong>{{ stats.pending }}</strong><span>سفارش</span></div><div><small>در حال پردازش</small><strong>{{ stats.processing }}</strong><span>سفارش</span></div><div><small>درآمد کل</small><strong>{{ stats.revenue|floatformat:0 }}</strong><span>تومان</span></div><div><small>پرداخت ناموفق</small><strong>{{ stats.failed_payments }}</strong><span>مورد</span></div><div><small>موجودی کم</small><strong>{{ stats.low_stock }}</strong><span>محصول</span></div><div><small>کد آماده</small><strong>{{ stats.available_codes }}</strong><span>کد</span></div></div>
-<div class="gw-grid gw-grid-2"><section class="gw-card"><div class="gw-card-head"><div><span>عملکرد فروش</span><h2>۷ روز اخیر</h2></div></div><div class="gw-chart">{% for day in chart %}<div class="gw-bar-wrap"><span>{{ day.value|floatformat:0 }}</span><div class="gw-bar" style="height:{{ day.height }}%"></div><small>{{ day.label }}</small></div>{% endfor %}</div></section><section class="gw-card"><div class="gw-card-head"><div><span>آخرین پرداخت‌ها</span><h2>پرداخت‌های اخیر</h2></div><a href="{% url 'admin_model_list' 'payments' %}">همه</a></div><div class="gw-list">{% for p in recent_payments %}<a href="{% url 'admin_model_edit' 'payments' p.pk %}"><strong>#{{ p.order_id }}</strong><span>{{ p.amount|floatformat:0 }} تومان</span><em>{{ p.get_status_display }}</em></a>{% empty %}<div class="gw-empty">پرداختی وجود ندارد.</div>{% endfor %}</div></section></div>
-<div class="gw-grid gw-grid-3"><section class="gw-card"><div class="gw-card-head"><h2>آخرین سفارش‌ها</h2><a href="{% url 'admin_model_list' 'orders' %}">همه</a></div>{% for o in recent_orders %}<div class="gw-row"><div><a href="{% url 'admin_model_edit' 'orders' o.pk %}">#{{ o.pk }}</a><small>{{ o.user.username }}</small></div><strong>{{ o.total_amount|floatformat:0 }}</strong><span class="status status-{{ o.status }}">{{ o.get_status_display }}</span></div>{% empty %}<div class="gw-empty">سفارشی وجود ندارد.</div>{% endfor %}</section><section class="gw-card"><div class="gw-card-head"><h2>نیازمند بررسی</h2></div>{% for o in attention_orders %}<div class="gw-row"><div><a href="{% url 'admin_model_edit' 'orders' o.pk %}">سفارش #{{ o.pk }}</a><small>{{ o.user.username }}</small></div><span class="status status-processing">در حال پردازش</span></div>{% empty %}<div class="gw-empty">موردی نیست.</div>{% endfor %}</section><section class="gw-card"><div class="gw-card-head"><h2>کم‌موجودی</h2><a href="{% url 'admin_model_list' 'products' %}">محصولات</a></div>{% for p in low_stock_products %}<div class="gw-row"><div><strong>{{ p.name }}</strong><small>موجودی</small></div><span class="stock-low">{{ p.stock }}</span></div>{% empty %}<div class="gw-empty">موردی نیست.</div>{% endfor %}</section></div>
-<div class="gw-quick"><a href="{% url 'admin_model_create' 'products' %}">＋ محصول جدید</a><a href="{% url 'admin_model_create' 'coupons' %}">＋ کوپن جدید</a><a href="{% url 'admin_model_list' 'codes' %}">🔐 مدیریت کدها</a><a href="{% url 'admin_model_list' 'reviews' %}">⭐ بررسی نظرات</a><a href="{% url 'codes_import' %}">⇩ ورود CSV کدها</a><a href="{% url 'codes_export' %}">⇧ خروجی CSV کدها</a></div>
+{% extends "admin_panel/base.html" %}
+{% block title %}داشبورد | Giftbaaz{% endblock %}
+{% block content %}
+<div class="gw-heading">
+    <div>
+        <span>مرکز کنترل Giftbaaz</span>
+        <h1>داشبورد فروشگاه</h1>
+        <p>فروش، سفارش، پرداخت و موجودی را یک‌جا ببین.</p>
+    </div>
+    <a class="gw-primary" href="{% url 'admin_model_create' 'products' %}">＋ افزودن محصول</a>
+</div>
+
+<div class="gw-kpis">
+    <div><small>فروش امروز</small><strong>{{ stats.sales_today|floatformat:0 }}</strong><span>تومان</span></div>
+    <div><small>سفارش امروز</small><strong>{{ stats.orders_today }}</strong><span>سفارش</span></div>
+    <div><small>در انتظار پرداخت</small><strong>{{ stats.pending }}</strong><span>سفارش</span></div>
+    <div><small>در حال پردازش</small><strong>{{ stats.processing }}</strong><span>سفارش</span></div>
+    <div><small>درآمد کل</small><strong>{{ stats.revenue|floatformat:0 }}</strong><span>تومان</span></div>
+    <div><small>پرداخت ناموفق</small><strong>{{ stats.failed_payments }}</strong><span>مورد</span></div>
+    <div><small>موجودی کم</small><strong>{{ stats.low_stock }}</strong><span>محصول</span></div>
+    <div><small>کد آماده</small><strong>{{ stats.available_codes }}</strong><span>کد</span></div>
+</div>
+
+<div class="gw-grid gw-grid-2">
+    <section class="gw-card">
+        <div class="gw-card-head">
+            <div><span>عملکرد فروش</span><h2>۷ روز اخیر</h2></div>
+        </div>
+        <div class="gw-chart">
+            {% for day in chart %}
+            <div class="gw-bar-wrap">
+                <span>{{ day.value|floatformat:0 }}</span>
+                <div class="gw-bar" style="height:{{ day.height }}%"></div>
+                <small>{{ day.label }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="gw-card">
+        <div class="gw-card-head">
+            <div><span>آخرین پرداخت‌ها</span><h2>پرداخت‌های اخیر</h2></div>
+            <a href="{% url 'admin_model_list' 'payments' %}">همه</a>
+        </div>
+        <div class="gw-list">
+            {% for p in recent_payments %}
+            <a href="{% url 'admin_model_edit' 'payments' p.pk %}">
+                <strong>#{{ p.order_id }}</strong>
+                <span>{{ p.amount|floatformat:0 }} تومان</span>
+                <em>{{ p.get_status_display }}</em>
+            </a>
+            {% empty %}<div class="gw-empty">پرداختی وجود ندارد.</div>{% endfor %}
+        </div>
+    </section>
+</div>
+
+<div class="gw-grid gw-grid-3">
+    <section class="gw-card">
+        <div class="gw-card-head"><h2>آخرین سفارش‌ها</h2><a href="{% url 'admin_model_list' 'orders' %}">همه</a></div>
+        {% for o in recent_orders %}
+        <div class="gw-row">
+            <div><a href="{% url 'admin_model_edit' 'orders' o.pk %}">#{{ o.pk }}</a><small>{{ o.user.username }}</small></div>
+            <strong>{{ o.total_amount|floatformat:0 }}</strong>
+            <span class="status status-{{ o.status }}">{{ o.get_status_display }}</span>
+        </div>
+        {% empty %}<div class="gw-empty">سفارشی وجود ندارد.</div>{% endfor %}
+    </section>
+
+    <section class="gw-card">
+        <div class="gw-card-head"><h2>نیازمند بررسی</h2></div>
+        {% for o in attention_orders %}
+        <div class="gw-row">
+            <div><a href="{% url 'admin_model_edit' 'orders' o.pk %}">سفارش #{{ o.pk }}</a><small>{{ o.user.username }}</small></div>
+            <span class="status status-processing">در حال پردازش</span>
+        </div>
+        {% empty %}<div class="gw-empty">موردی نیست.</div>{% endfor %}
+    </section>
+
+    <section class="gw-card">
+        <div class="gw-card-head"><h2>کم‌موجودی</h2><a href="{% url 'admin_model_list' 'products' %}">محصولات</a></div>
+        {% for p in low_stock_products %}
+        <div class="gw-row">
+            <div><strong>{{ p.name }}</strong><small>موجودی</small></div>
+            <span class="stock-low">{{ p.effective_stock }}</span>
+        </div>
+        {% empty %}<div class="gw-empty">موردی نیست.</div>{% endfor %}
+    </section>
+</div>
+
+<div class="gw-quick">
+    <a href="{% url 'admin_model_create' 'products' %}">＋ محصول جدید</a>
+    <a href="{% url 'admin_model_create' 'coupons' %}">＋ کوپن جدید</a>
+    <a href="{% url 'admin_model_list' 'codes' %}">🔐 مدیریت کدها</a>
+    <a href="{% url 'admin_model_list' 'reviews' %}">⭐ بررسی نظرات</a>
+    <a href="{% url 'codes_import' %}">⇩ ورود CSV کدها</a>
+    <a href="{% url 'codes_export' %}">⇧ خروجی CSV کدها</a>
+</div>
 {% endblock %}

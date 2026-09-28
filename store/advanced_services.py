@@ -1,4 +1,3 @@
-# GIFTWEB_FINAL_PACKAGE_V1
 from __future__ import annotations
 import secrets,string
 from django.db import transaction
@@ -44,11 +43,20 @@ def reserve_coupon(code,user,amount):
         return c,d,''
 
 def release_coupon_for_order(order):
-    r=getattr(order,'coupon_redemption',None)
-    if not r:return
+    """Release a coupon reservation exactly once after failed payment."""
     with transaction.atomic():
-        c=Coupon.objects.select_for_update().get(pk=r.coupon_id)
-        if c.used_count:c.used_count-=1;c.save(update_fields=['used_count'])
+        redemption = (
+            CouponRedemption.objects.select_for_update()
+            .filter(order=order)
+            .first()
+        )
+        if not redemption:
+            return
+        coupon = Coupon.objects.select_for_update().get(pk=redemption.coupon_id)
+        if coupon.used_count:
+            coupon.used_count -= 1
+            coupon.save(update_fields=["used_count"])
+        redemption.delete()
 
 def record_recent_view(request,product):
     if not request.session.session_key: request.session.create()

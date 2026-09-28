@@ -5,7 +5,7 @@ def faq(request): return render(request, "faq.html")
 def guide(request): return render(request, "guide.html")
 def terms(request): return render(request, "terms.html")
 def privacy(request): return render(request, "privacy.html")
-# GIFTWEB_FINAL_PACKAGE_V1
+
 from django.http import HttpResponse
 
 def robots(request):

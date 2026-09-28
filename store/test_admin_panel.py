@@ -1,11 +1,16 @@
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from io import BytesIO
+import tempfile
 from PIL import Image
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from .models import Category, Product
 
+TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="giftbaaz-tests-")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class AdminPanelTests(TestCase):
     def setUp(self):
         self.staff=User.objects.create_user(username='paneladmin',password='StrongPass123!',is_staff=True)
