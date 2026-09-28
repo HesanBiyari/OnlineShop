@@ -1,0 +1,5 @@
+# Uploaded media is data, not executable application code.
+Options -ExecCGI
+<FilesMatch "\.(php|php[0-9]?|phtml|phar|cgi|pl|py|jsp|asp|aspx)$">
+    Require all denied
+</FilesMatch>

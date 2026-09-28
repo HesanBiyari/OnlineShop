@@ -1,0 +1,34 @@
+name: Django CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Django check
+        env:
+          DJANGO_DEBUG: "true"
+          DJANGO_SECRET_KEY: "ci-only-secret"
+        run: python manage.py check
+      - name: Migration check
+        env:
+          DJANGO_DEBUG: "true"
+          DJANGO_SECRET_KEY: "ci-only-secret"
+        run: python manage.py makemigrations --check --dry-run
+      - name: Tests
+        env:
+          DJANGO_DEBUG: "true"
+          DJANGO_SECRET_KEY: "ci-only-secret"
+        run: python manage.py test
+      - name: Collect static
+        env:
+          DJANGO_DEBUG: "true"
+          DJANGO_SECRET_KEY: "ci-only-secret"
+        run: python manage.py collectstatic --noinput
