@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
-
 
 {% block title %}{{ product.name }} | Giftbaaz{% endblock %}
 {% block meta_description %}{{ product.description|striptags|truncatechars:160 }}{% endblock %}
@@ -93,7 +91,7 @@
           <div class="qty-field"><label for="quantity">تعداد</label><input id="quantity" type="number" name="quantity" value="1" min="1" inputmode="numeric"></div>
           <button class="btn btn-primary btn-wide" type="submit" {% if not product.catalog_has_stock %}disabled{% endif %}>افزودن به سبد <span>←</span></button>
         </form>
-        <div class="mini-trust"><span><svg class="ui-icon ui-icon--sm"><use href="{% static 'assets/giftbaaz-ui.svg' %}#lock"></use></svg>خرید امن</span><span><svg class="ui-icon ui-icon--sm"><use href="{% static 'assets/giftbaaz-ui.svg' %}#bolt"></use></svg>تحویل دیجیتال</span><span><svg class="ui-icon ui-icon--sm"><use href="{% static 'assets/giftbaaz-ui.svg' %}#share"></use></svg>قابل پیگیری</span></div>
+        <div class="mini-trust"><span>🔒 خرید امن</span><span>⚡ تحویل دیجیتال</span><span>↗ قابل پیگیری</span></div>
       </div>
     </div>
 

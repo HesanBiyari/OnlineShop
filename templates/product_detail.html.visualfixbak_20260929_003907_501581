@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
-
 
 {% block title %}{{ product.name }} | Giftbaaz{% endblock %}
 {% block meta_description %}{{ product.description|striptags|truncatechars:160 }}{% endblock %}

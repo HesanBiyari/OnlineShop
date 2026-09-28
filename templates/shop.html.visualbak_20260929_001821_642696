@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
-
 {% block title %}فروشگاه | Giftbaaz{% endblock %}
 {% block content %}
 <section class="page-hero"><div class="container"><span class="eyebrow">فروشگاه</span><h1>محصول مناسب خودت را پیدا کن.</h1><p>جستجو، دسته‌بندی و مرتب‌سازی برای پیدا کردن سریع‌تر محصول.</p></div></section>
@@ -11,7 +9,7 @@
   </div>
   <div class="shop-layout">
     <aside class="filter-panel"><div class="filter-box"><span class="eyebrow">فیلتر</span><h3>دسته‌بندی</h3><a class="{% if not selected_category %}active{% endif %}" href="{% url 'shop' %}{% if query %}?q={{ query|urlencode }}{% endif %}">همه محصولات</a>{% for category in categories %}<a class="{% if selected_category == category.slug %}active{% endif %}" href="{% url 'shop' %}?category={{ category.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}">{{ category.name }}</a>{% endfor %}</div></aside>
-    <div class="shop-results-wrap"><div class="results-meta"><span>{{ page_obj.paginator.count }} محصول</span>{% if query %}<span>برای «{{ query }}»</span>{% endif %}</div><div class="product-grid">{% for product in page_obj %}{% include "partials/product_card.html" with product=product %}{% empty %}<div class="empty-state"><div><svg class="ui-icon ui-icon--lg"><use href="{% static 'assets/giftbaaz-ui.svg' %}#empty-search"></use></svg></div><h2>چیزی پیدا نشد</h2><p>عبارت جستجو یا فیلتر را تغییر بده.</p><a class="btn btn-primary" href="{% url 'shop' %}">حذف فیلترها</a></div>{% endfor %}</div>
+    <div class="shop-results-wrap"><div class="results-meta"><span>{{ page_obj.paginator.count }} محصول</span>{% if query %}<span>برای «{{ query }}»</span>{% endif %}</div><div class="product-grid">{% for product in page_obj %}{% include "partials/product_card.html" with product=product %}{% empty %}<div class="empty-state"><div>⌕</div><h2>چیزی پیدا نشد</h2><p>عبارت جستجو یا فیلتر را تغییر بده.</p><a class="btn btn-primary" href="{% url 'shop' %}">حذف فیلترها</a></div>{% endfor %}</div>
     {% if page_obj.paginator.num_pages > 1 %}<div class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}&sort={{ selected_sort|urlencode }}">قبلی</a>{% endif %}<span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ query|urlencode }}&category={{ selected_category|urlencode }}&sort={{ selected_sort|urlencode }}">بعدی</a>{% endif %}</div>{% endif %}
     </div>
   </div>

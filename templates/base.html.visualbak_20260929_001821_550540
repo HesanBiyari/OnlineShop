@@ -13,12 +13,6 @@
   <meta property="og:description" content="{% block og_description %}فروشگاه محصولات دیجیتال و گیفت کارت{% endblock %}">
   <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
   <meta property="og:type" content="website">
-  <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
-  <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
-  <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
 
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   {% block extra_head %}{% endblock %}
@@ -29,23 +23,23 @@
   <div class="ambient ambient-b" aria-hidden="true"></div>
 
   <header class="site-header">
-    <div class="announcement"><div class="container announcement-inner"><span><svg class="ui-icon ui-icon--sm"><use href="{% static 'assets/giftbaaz-ui.svg' %}#bolt"></use></svg>تحویل دیجیتال سریع</span><span>خرید امن و قابل پیگیری</span><span>پشتیبانی سفارش</span></div></div>
+    <div class="announcement"><div class="container announcement-inner"><span>⚡ تحویل دیجیتال سریع</span><span>خرید امن و قابل پیگیری</span><span>پشتیبانی سفارش</span></div></div>
     <div class="container header-main">
       <a class="brand" href="{% url 'home' %}" aria-label="Giftbaaz">
-        <img class="brand-mark-image" src="{% static 'assets/branding/giftbaaz-mark.svg' %}" alt="Giftbaaz"><span class="brand-text">Giftbaaz</span>
+        <span class="brand-mark">G</span><span class="brand-text">Giftbaaz</span>
       </a>
       <form class="global-search" action="{% url 'shop' %}" method="get" role="search">
-        <span class="search-icon" aria-hidden="true"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#search"></use></svg></span>
+        <span class="search-icon" aria-hidden="true">⌕</span>
         <input name="q" value="{{ request.GET.q }}" placeholder="محصول، گیفت کارت یا دسته‌بندی..." autocomplete="off">
         <button type="submit">جستجو</button>
       </form>
       <div class="header-actions">
         {% if user.is_authenticated %}
-          <a class="icon-action" href="{% url 'account' %}"><span><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#user"></use></svg></span><b>حساب</b></a>
+          <a class="icon-action" href="{% url 'account' %}"><span>◉</span><b>حساب</b></a>
         {% else %}
-          <a class="icon-action" href="{% url 'login' %}"><span><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#user"></use></svg></span><b>ورود</b></a>
+          <a class="icon-action" href="{% url 'login' %}"><span>◉</span><b>ورود</b></a>
         {% endif %}
-        <a class="cart-action" href="{% url 'cart' %}"><span><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#cart"></use></svg></span><b>سبد</b>{% if cart_count %}<em>{{ cart_count }}</em>{% endif %}</a>
+        <a class="cart-action" href="{% url 'cart' %}"><span>🛒</span><b>سبد</b>{% if cart_count %}<em>{{ cart_count }}</em>{% endif %}</a>
       </div>
     </div>
     <nav class="nav-wrap">
@@ -71,7 +65,7 @@
 
   <footer class="site-footer">
     <div class="container footer-grid">
-      <div><a class="brand footer-brand" href="{% url 'home' %}"><img class="brand-mark-image" src="{% static 'assets/branding/giftbaaz-mark.svg' %}" alt="Giftbaaz"><span class="brand-text">Giftbaaz</span></a><p>فروشگاه محصولات دیجیتال با تجربه خرید سریع، شفاف و حرفه‌ای.</p></div>
+      <div><a class="brand footer-brand" href="{% url 'home' %}"><span class="brand-mark">G</span><span class="brand-text">Giftbaaz</span></a><p>فروشگاه محصولات دیجیتال با تجربه خرید سریع، شفاف و حرفه‌ای.</p></div>
       <div><h3>دسترسی سریع</h3><a href="{% url 'home' %}">خانه</a><a href="{% url 'shop' %}">فروشگاه</a>{% if user.is_authenticated %}<a href="{% url 'orders' %}">سفارش‌ها</a>{% endif %}</div>
       <div><h3>خرید</h3><a href="{% url 'shop' %}">همه محصولات</a><a href="{% url 'cart' %}">سبد خرید</a><a href="{% url 'shop' %}">دسته‌بندی‌ها</a></div>
       <div><h3>راهنما</h3><a href="{% url 'faq' %}">سؤالات متداول</a><a href="{% url 'guide' %}">راهنمای خرید</a><a href="{% url 'terms' %}">قوانین</a><a href="{% url 'privacy' %}">حریم خصوصی</a><a href="{% url 'contact' %}">تماس با ما</a></div>
@@ -80,7 +74,7 @@
   </footer>
 
   <nav class="mobile-bottom-nav" aria-label="ناوبری موبایل">
-    <a href="{% url 'home' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#home"></use></svg><span>خانه</span></a><a href="{% url 'shop' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#search"></use></svg><span>فروشگاه</span></a><a href="{% url 'cart' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#cart"></use></svg><span>سبد</span></a>
+    <a href="{% url 'home' %}">⌂<span>خانه</span></a><a href="{% url 'shop' %}">⌕<span>فروشگاه</span></a><a href="{% url 'cart' %}">🛒<span>سبد</span></a>
     {% if user.is_authenticated %}<a href="{% url 'account' %}">◉<span>حساب</span></a>{% else %}<a href="{% url 'login' %}">◉<span>ورود</span></a>{% endif %}
   </nav>
 

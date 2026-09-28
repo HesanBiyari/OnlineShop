@@ -1,6 +1,5 @@
-{% extends "base.html" %}
 {% load static %}
-
+{% extends "base.html" %}
 {% block title %}حساب من | Giftbaaz{% endblock %}
 {% block content %}
 <section class="page-hero"><div class="container">

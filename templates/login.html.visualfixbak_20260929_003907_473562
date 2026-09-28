@@ -1,5 +1,4 @@
-{% extends "base.html" %}
 {% load static %}
-
+{% extends "base.html" %}
 {% block title %}ورود | Giftbaaz{% endblock %}
 {% block content %}<section class="auth-page"><div class="auth-visual"><img class="auth-art" src="{% static 'assets/hero/giftbaaz-auth.svg' %}" alt="Giftbaaz account illustration"><span class="hero-kicker">خوش برگشتی</span><h1>ورود با<br><span>شماره موبایل.</span></h1><p>شماره موبایل خودت و رمز عبور را وارد کن. نام کاربری در تجربه کاربری نمایش داده نمی‌شود.</p></div><div class="auth-card"><span class="eyebrow">حساب کاربری</span><h2>ورود</h2><p class="form-subtitle">شماره موبایل و رمز عبور را وارد کن.</p><form method="post" class="styled-form">{% csrf_token %}<p><label for="id_phone">شماره موبایل</label><input id="id_phone" name="phone" value="{{ phone }}" inputmode="tel" autocomplete="tel" placeholder="0912 123 4567" required></p><p><label for="id_password">رمز عبور</label><input id="id_password" name="password" type="password" autocomplete="current-password" placeholder="رمز عبور" required></p>{% if login_error %}<ul class="errorlist"><li>شماره موبایل یا رمز عبور صحیح نیست.</li></ul>{% endif %}<input type="hidden" name="next" value="{{ next }}"><button class="btn btn-primary btn-wide" type="submit">ورود به حساب ←</button></form><p class="auth-switch">حساب نداری؟ <a href="{% url 'signup' %}">ثبت‌نام کن</a></p></div></section>{% endblock %}

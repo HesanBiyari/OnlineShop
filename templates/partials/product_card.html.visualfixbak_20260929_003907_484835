@@ -1,4 +1,3 @@
-{% load static %}
 <article class="product-card reveal">
   <a class="product-media" href="{% url 'product_detail' product.pk %}" aria-label="{{ product.name }}">
     {% with image=product.display_images|first %}

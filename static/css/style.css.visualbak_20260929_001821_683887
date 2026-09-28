@@ -11,19 +11,3 @@
 .bestseller-badge{position:absolute;top:12px;left:12px;z-index:3;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:4px 9px;border-radius:999px;font-size:10px;font-weight:900;box-shadow:0 8px 20px rgba(239,68,68,.22)}
 
 .advanced-product-panel{margin-top:30px;padding:22px;background:rgba(17,22,34,.72);border:1px solid rgba(124,58,237,.2);border-radius:20px}.advanced-actions{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.review-card,.notification-card{padding:15px;margin:10px 0;border:1px solid rgba(255,255,255,.08);border-radius:14px}.advanced-account-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.advanced-link{padding:18px;display:flex;flex-direction:column;gap:7px}.advanced-link span{color:#8d97aa;font-size:12px}.referral-card,.kpi-card{padding:28px}.referral-code{display:block;font-size:30px;margin:15px}.coupon-box{padding:14px;margin-bottom:15px}.coupon-row{display:flex;gap:8px}.coupon-row input{flex:1}@media(max-width:900px){.advanced-account-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:520px){.advanced-account-grid{grid-template-columns:1fr}.coupon-row{flex-direction:column}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
-
-/* Giftbaaz Visual Identity Pack */
-.ui-icon{width:20px;height:20px;display:inline-block;vertical-align:middle;flex:0 0 auto}
-.ui-icon--sm{width:16px;height:16px}.ui-icon--md{width:24px;height:24px}.ui-icon--lg{width:58px;height:58px}.ui-icon--xl{width:82px;height:82px}
-.brand-mark-image{width:40px;height:40px;display:block}.footer-brand .brand-mark-image{width:38px;height:38px}
-.hero-art{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 25px 55px rgba(108,74,255,.25))}
-.auth-art{width:min(100%,400px);display:block;margin:0 auto 22px;opacity:.96;filter:drop-shadow(0 25px 55px rgba(108,74,255,.18));max-height:280px;object-fit:contain}
-.category-icon{padding:8px}.category-icon .ui-icon{width:30px;height:30px}
-.trust-grid b,.floating-stat b{display:grid;place-items:center}.step i{padding:7px}
-.empty-state>div .ui-icon{width:74px;height:74px}
-.payment-result .result-art{width:86px;height:86px;margin:0 auto 16px;display:grid;place-items:center}
-.mini-trust span,.hero-proof span{display:inline-flex;align-items:center;gap:6px}
-.bestseller-badge{display:inline-flex;align-items:center;gap:4px}
-.mobile-bottom-nav a{gap:3px}
-@media(max-width:600px){.hero-art{height:100%}.auth-art{max-width:290px;max-height:210px}}
-

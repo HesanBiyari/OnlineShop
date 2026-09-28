@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
-
 {% block title %}Giftbaaz | فروشگاه محصولات دیجیتال{% endblock %}
 {% block content %}
 <section class="hero">

@@ -17,8 +17,6 @@
   <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
   <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
-  <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
 
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   {% block extra_head %}{% endblock %}

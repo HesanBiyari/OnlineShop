@@ -1,5 +1,4 @@
-{% extends "base.html" %}
 {% load static %}
-
+{% extends "base.html" %}
 {% block title %}ثبت‌نام | Giftbaaz{% endblock %}
 {% block content %}<section class="auth-page"><div class="auth-visual"><img class="auth-art" src="{% static 'assets/hero/giftbaaz-auth.svg' %}" alt="Giftbaaz account illustration"><span class="hero-kicker">شروع کن</span><h1>حساب تو،<br><span>با شماره موبایل.</span></h1><p>شماره موبایل شناسه اصلی ورود توست؛ نام کاربری داخلی فقط برای سازگاری Django نگه داشته می‌شود.</p></div><div class="auth-card"><span class="eyebrow">حساب جدید</span><h2>ثبت‌نام</h2><p class="form-subtitle">شماره موبایل، ایمیل و رمز عبور.</p><form method="post" class="styled-form">{% csrf_token %}{{ form.non_field_errors }}{{ form.as_p }}<button class="btn btn-primary btn-wide" type="submit">ساخت حساب ←</button></form><p class="auth-switch">حساب داری؟ <a href="{% url 'login' %}">وارد شو</a></p></div></section>{% endblock %}

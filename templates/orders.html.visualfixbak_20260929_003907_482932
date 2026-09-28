@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
-
 {% block title %}سفارش‌های من | Giftbaaz{% endblock %}
 {% block content %}
 <section class="page-hero"><div class="container"><span class="eyebrow">حساب کاربری</span><h1>سفارش‌های من</h1><p>تاریخچه کامل سفارش‌ها.</p></div></section>

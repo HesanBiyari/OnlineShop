@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
-
 {% block title %}سبد خرید | Giftbaaz{% endblock %}
 {% block content %}
 <section class="page-hero"><div class="container"><span class="eyebrow">خرید</span><h1>سبد خرید</h1><p>قبل از ادامه، اقلام و تعداد را بررسی کن.</p></div></section>
