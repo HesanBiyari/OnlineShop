@@ -13,9 +13,13 @@
   <meta property="og:description" content="{% block og_description %}فروشگاه محصولات دیجیتال و گیفت کارت{% endblock %}">
   <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
   <meta property="og:type" content="website">
-
   <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
+  <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
+  <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
+
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
@@ -77,7 +81,7 @@
 
   <nav class="mobile-bottom-nav" aria-label="ناوبری موبایل">
     <a href="{% url 'home' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#home"></use></svg><span>خانه</span></a><a href="{% url 'shop' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#search"></use></svg><span>فروشگاه</span></a><a href="{% url 'cart' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#cart"></use></svg><span>سبد</span></a>
-    {% if user.is_authenticated %}<a href="{% url 'account' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#user"></use></svg><span>حساب</span></a>{% else %}<a href="{% url 'login' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#user"></use></svg><span>ورود</span></a>{% endif %}
+    {% if user.is_authenticated %}<a href="{% url 'account' %}">◉<span>حساب</span></a>{% else %}<a href="{% url 'login' %}">◉<span>ورود</span></a>{% endif %}
   </nav>
 
   <script src="{% static 'js/app.js' %}" defer></script>
