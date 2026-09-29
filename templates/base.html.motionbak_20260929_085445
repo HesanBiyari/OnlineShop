@@ -16,11 +16,10 @@
 
   <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
-  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=gb-motion-v4">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=gb-dim-v2">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="app-shell">
-  <div class="scroll-progress" data-scroll-progress aria-hidden="true"><span></span></div>
   <div class="noise" aria-hidden="true"></div>
   <div class="ambient ambient-a" aria-hidden="true"></div>
   <div class="ambient ambient-b" aria-hidden="true"></div>
@@ -47,10 +46,11 @@
     </div>
     <nav class="nav-wrap">
       <div class="container nav-inner">
-        <a class="nav-link" data-nav="home" href="{% url 'home' %}">خانه</a>
-        <a class="nav-link" data-nav="shop" href="{% url 'shop' %}">فروشگاه</a>
-        <a class="nav-link" data-nav="shop" href="{% url 'shop' %}">دسته‌بندی‌ها</a>
-        {% if user.is_authenticated %}<a class="nav-link" data-nav="orders" href="{% url 'orders' %}">سفارش‌های من</a>{% endif %}
+        <a class="nav-link is-active" href="{% url 'home' %}">خانه</a>
+        <a class="nav-link" href="{% url 'shop' %}">فروشگاه</a>
+        <a class="nav-link" href="{% url 'shop' %}">گیفت کارت</a>
+        <a class="nav-link" href="{% url 'shop' %}">دسته‌بندی‌ها</a>
+        {% if user.is_authenticated %}<a class="nav-link" href="{% url 'orders' %}">سفارش‌های من</a>{% endif %}
       </div>
     </nav>
   </header>
