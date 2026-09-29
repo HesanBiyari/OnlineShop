@@ -16,7 +16,7 @@
 
   <link rel="icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'assets/branding/giftbaaz-mark.svg' %}">
-  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=gb-premium-v5">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=gb-motion-v4">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="app-shell">
