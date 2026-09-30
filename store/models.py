@@ -305,7 +305,7 @@ class DigitalCode(models.Model):
         null=True,
         blank=True,
     )
-    code = models.CharField(max_length=500, unique=True)
+    code = models.CharField(max_length=255, unique=True)
     pin = models.CharField(max_length=200, blank=True)
     is_used = models.BooleanField(default=False)
     order_item = models.ForeignKey(

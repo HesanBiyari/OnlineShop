@@ -151,7 +151,9 @@ STORAGES = {
 }
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(
+    os.getenv("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media"))
+)
 
 EMAIL_BACKEND = os.getenv(
     "DJANGO_EMAIL_BACKEND",

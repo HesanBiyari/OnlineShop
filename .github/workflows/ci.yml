@@ -22,13 +22,13 @@ jobs:
           DJANGO_DEBUG: "true"
           DJANGO_SECRET_KEY: "ci-only-secret"
         run: python manage.py makemigrations --check --dry-run
-      - name: Tests
-        env:
-          DJANGO_DEBUG: "true"
-          DJANGO_SECRET_KEY: "ci-only-secret"
-        run: python manage.py test
       - name: Collect static
         env:
           DJANGO_DEBUG: "true"
           DJANGO_SECRET_KEY: "ci-only-secret"
         run: python manage.py collectstatic --noinput
+      - name: Tests
+        env:
+          DJANGO_DEBUG: "true"
+          DJANGO_SECRET_KEY: "ci-only-secret"
+        run: python manage.py test

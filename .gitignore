@@ -219,3 +219,6 @@ __marimo__/
 .env.*
 !.env.example
 staticfiles/
+
+# Repair script backups
+.repair_backups/
