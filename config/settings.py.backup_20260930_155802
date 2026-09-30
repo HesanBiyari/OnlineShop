@@ -105,21 +105,12 @@ DATABASES = {
         "NAME": os.getenv("DJANGO_DB_NAME", str(BASE_DIR / "db.sqlite3")),
     }
 }
-if DB_ENGINE in {
-    "django.db.backends.mysql",
-    "django.db.backends.postgresql",
-}:
-    default_port = (
-        "3306"
-        if DB_ENGINE == "django.db.backends.mysql"
-        else "5432"
-    )
-
+if DB_ENGINE == "django.db.backends.postgresql":
     DATABASES["default"].update({
         "USER": os.getenv("DJANGO_DB_USER", ""),
         "PASSWORD": os.getenv("DJANGO_DB_PASSWORD", ""),
         "HOST": os.getenv("DJANGO_DB_HOST", "localhost"),
-        "PORT": os.getenv("DJANGO_DB_PORT", default_port),
+        "PORT": os.getenv("DJANGO_DB_PORT", "5432"),
     })
 if not DEBUG and DB_ENGINE == "django.db.backends.sqlite3":
     raise ImproperlyConfigured(
