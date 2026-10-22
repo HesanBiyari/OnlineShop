@@ -18,7 +18,7 @@
     <div><small>درآمد کل</small><strong>{{ stats.revenue|floatformat:0 }}</strong><span>تومان</span></div>
     <div><small>پرداخت ناموفق</small><strong>{{ stats.failed_payments }}</strong><span>مورد</span></div>
     <div><small>موجودی کم</small><strong>{{ stats.low_stock }}</strong><span>محصول</span></div>
-    <div><small>کد آماده</small><strong>{{ stats.available_codes }}</strong><span>کد</span></div>
+    <div><small>کد آماده</small><strong>{% if show_codes %}{{ stats.available_codes }}{% else %}—{% endif %}</strong><span>کد</span></div>
 </div>
 
 <div class="gw-grid gw-grid-2">
@@ -44,7 +44,7 @@
         </div>
         <div class="gw-list">
             {% for p in recent_payments %}
-            <a href="{% url 'admin_model_edit' 'payments' p.pk %}">
+            <a href="{% url 'admin_model_list' 'payments' %}?q={{ p.order_id }}">
                 <strong>#{{ p.order_id }}</strong>
                 <span>{{ p.amount|floatformat:0 }} تومان</span>
                 <em>{{ p.get_status_display }}</em>
@@ -90,9 +90,11 @@
 <div class="gw-quick">
     <a href="{% url 'admin_model_create' 'products' %}">＋ محصول جدید</a>
     <a href="{% url 'admin_model_create' 'coupons' %}">＋ کوپن جدید</a>
-    <a href="{% url 'admin_model_list' 'codes' %}">🔐 مدیریت کدها</a>
+    {% if show_codes %}
+        <a href="{% url 'admin_model_list' 'codes' %}">🔐 مدیریت کدها</a>
+        <a href="{% url 'codes_import' %}">⇩ ورود CSV کدها</a>
+        <a href="{% url 'codes_export' %}">⇧ خروجی CSV کدها</a>
+    {% endif %}
     <a href="{% url 'admin_model_list' 'reviews' %}">⭐ بررسی نظرات</a>
-    <a href="{% url 'codes_import' %}">⇩ ورود CSV کدها</a>
-    <a href="{% url 'codes_export' %}">⇧ خروجی CSV کدها</a>
 </div>
 {% endblock %}

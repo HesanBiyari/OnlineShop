@@ -118,26 +118,16 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AddConstraint(
-            model_name="order",
-            constraint=models.UniqueConstraint(
-                condition=models.Q(("payment_ref", ""), _negated=True),
-                fields=("payment_ref",),
-                name="unique_non_empty_payment_ref",
-            ),
-        ),
-        migrations.AddConstraint(
             model_name="orderitem",
             constraint=models.CheckConstraint(
                 condition=models.Q(("quantity__gte", 1)),
                 name="order_item_quantity_gte_1",
             ),
         ),
-        migrations.AddConstraint(
-            model_name="productimage",
-            constraint=models.UniqueConstraint(
-                condition=models.Q(("is_main", True)),
-                fields=("product",),
-                name="one_main_image_per_product",
-            ),
-        ),
+        # ``unique_non_empty_payment_ref`` and ``one_main_image_per_product``
+        # were conditional unique constraints. MySQL/MariaDB cannot create
+        # partial indexes, so a fresh production migration failed here. Both
+        # rules are now enforced transactionally in the application layer
+        # (Payment is one-to-one with Order and ProductImage.save() assigns a
+        # single main image under a row lock).
     ]

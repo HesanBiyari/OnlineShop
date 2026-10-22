@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}دسترسی غیرمجاز | Giftbaaz{% endblock %}
+{% block content %}<section class="auth-page"><div class="auth-card"><div class="result-art"><svg class="ui-icon ui-icon--xl"><use href="{% static 'assets/giftbaaz-ui.svg' %}#lock"></use></svg></div><span class="eyebrow">خطای دسترسی</span><h1>اجازه ورود به این بخش را ندارید</h1><p class="form-subtitle">اگر فکر می‌کنید اشتباهی رخ داده، با پشتیبانی تماس بگیرید.</p><a class="btn btn-primary btn-wide" href="{% url 'home' %}">بازگشت به فروشگاه</a></div></section>{% endblock %}

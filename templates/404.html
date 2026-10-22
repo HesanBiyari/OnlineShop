@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}صفحه پیدا نشد | Giftbaaz{% endblock %}
+{% block content %}<section class="section"><div class="container"><div class="empty-state"><div><svg class="ui-icon ui-icon--lg"><use href="{% static 'assets/giftbaaz-ui.svg' %}#empty-search"></use></svg></div><h2>این صفحه پیدا نشد</h2><p>ممکن است آدرس تغییر کرده باشد یا محصول حذف شده باشد.</p><a class="btn btn-primary" href="{% url 'shop' %}">رفتن به فروشگاه</a></div></div></section>{% endblock %}

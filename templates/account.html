@@ -10,7 +10,7 @@
   <p>سفارش‌ها و فعالیت‌های خریدت را از اینجا مدیریت کن.</p>
 </div></section>
 <section class="section"><div class="container">
-  <div class="account-top"><a class="btn btn-primary" href="{% url 'shop' %}">ادامه خرید ←</a><a class="btn btn-secondary" href="{% url 'orders' %}">همه سفارش‌ها</a></div>
+  <div class="account-top"><a class="btn btn-primary" href="{% url 'shop' %}">ادامه خرید ←</a><a class="btn btn-secondary" href="{% url 'orders' %}">همه سفارش‌ها</a>{% if user.is_staff %}<a class="btn btn-secondary" href="{% url 'admin_dashboard' %}">پنل مدیریت</a>{% endif %}<form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button class="btn btn-ghost" type="submit">خروج از حساب</button></form></div>
   <div class="advanced-account-grid">
     <a class="glass advanced-link" href="{% url 'wishlist' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#heart"></use></svg><strong>علاقه‌مندی‌ها</strong><span>محصولات ذخیره‌شده</span></a>
     <a class="glass advanced-link" href="{% url 'loyalty' %}"><svg class="ui-icon"><use href="{% static 'assets/giftbaaz-ui.svg' %}#star"></use></svg><strong>وفاداری</strong><span>امتیاز خرید</span></a>

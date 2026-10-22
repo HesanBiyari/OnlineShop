@@ -1,35 +1,22 @@
 # Production deployment
 
-## cPanel / Passenger
-Project root: OnlineShop root
-WSGI: config.wsgi:application
+The maintained, step-by-step guide is
+[`docs/DEPLOYMENT_CPANEL.md`](docs/DEPLOYMENT_CPANEL.md).
 
-Install:
-    python -m pip install -r requirements.txt
+Database migration (including backup, pre-flight checks and rollback) is in
+[`docs/DATABASE_MIGRATION.md`](docs/DATABASE_MIGRATION.md).
 
-Server commands:
-    python manage.py migrate
-    python manage.py collectstatic --noinput
-    python manage.py check --deploy
+Quick reference:
 
-Set in hosting environment:
-- DJANGO_DEBUG=false
-- DJANGO_SECRET_KEY=<persistent random secret>
-- DJANGO_ALLOWED_HOSTS=your-domain.tld,www.your-domain.tld
-- DJANGO_CSRF_TRUSTED_ORIGINS=https://your-domain.tld,https://www.your-domain.tld
-- production database variables
-- ZARINPAL_MERCHANT_ID=<real merchant id>
-- ZARINPAL_SANDBOX=false
-- SMTP variables if email is used
+- App root: repository root containing `manage.py` and `passenger_wsgi.py`
+- WSGI entry point: `config.wsgi:application`
+- Settings: `config.settings` (defaults to production; set `DJANGO_ENV`)
+- Install: `python -m pip install -r requirements.txt`
+- Apply: `python manage.py migrate`
+- Static: `python manage.py collectstatic --noinput`
+- Verify: `python manage.py check --deploy`
+- Restart: `touch tmp/restart.txt` (or cPanel's Restart button)
+- Retry fulfilment: `python manage.py process_orders` (see `CRON.md`)
 
-Do not use SQLite in production.
-
-Static files are collected to staticfiles/ and WhiteNoise can serve them.
-Media stays under media/ and must be served as files, never executed.
-
-Before launch, verify HTTPS, ZarinPal callback, one real low-value payment,
-digital-code delivery, and repeated callback idempotency.
-
-Cron:
-    python manage.py process_orders
-Recommended interval: 1-5 minutes, subject to host limits.
+Do not use SQLite in production. The database must be created with
+`CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`.

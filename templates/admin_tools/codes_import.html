@@ -1,1 +1,34 @@
-{% extends "admin/base_site.html" %}{% block content %}<div class="gw-card"><h1>Import Digital Codes</h1><p>CSV: code,pin,product_id,variant_id</p><form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="file" name="file" accept=".csv" required><button class="button default">Import</button></form></div>{% endblock %}
+{% extends 'admin_panel/base.html' %}
+{% block title %}ورود کدهای دیجیتال | Giftbaaz{% endblock %}
+{% block content %}
+<div class="gw-heading compact">
+    <div>
+        <span>ابزار مدیریت</span>
+        <h1>ورود گروهی کدهای دیجیتال</h1>
+        <p>فایل CSV با ستون‌های code و product_id (و به‌صورت اختیاری pin و variant_id).</p>
+    </div>
+    <a class="gw-secondary" href="{% url 'admin_model_list' 'codes' %}">بازگشت به کدها</a>
+</div>
+
+<div class="gw-card gw-form-card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="gw-field">
+            <label for="file">فایل CSV</label>
+            <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+            <small>کدگذاری UTF-8؛ حداکثر ۲ مگابایت و ۱۰٬۰۰۰ ردیف. کدهای تکراری نادیده گرفته می‌شوند.</small>
+        </div>
+        <div class="gw-form-actions">
+            <button class="gw-primary" type="submit">بارگذاری کدها</button>
+            <a class="gw-secondary" href="{% url 'admin_model_list' 'codes' %}">انصراف</a>
+        </div>
+    </form>
+</div>
+
+<div class="gw-card">
+    <div class="gw-card-head"><h2>نمونه قالب</h2></div>
+    <pre dir="ltr" style="overflow:auto;padding:12px;background:#0a1220;border-radius:10px;">code,pin,product_id,variant_id
+ABCD-1234-EFGH,12345678,12,
+IJKL-5678-MNOP,,12,3</pre>
+</div>
+{% endblock %}
