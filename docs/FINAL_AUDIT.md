@@ -4,7 +4,7 @@ Date: 2026-10-22
 Branch: `rebuild/clean-architecture`
 Repository: `https://github.com/HesanBiyari/OnlineShop`
 Baseline before rebuild: `f22ffcc`
-Current commit: `57c84bc` (`Rebuild store architecture, payments, tests and docs`)
+Audit code commit: `f70f1f8` (`Harden payment, fulfilment and audit workflows`)
 
 ## 1. Summary
 
@@ -18,9 +18,10 @@ code delivery, coupon release, zero-total orders, staff/admin permissions,
 audit fail-closed behaviour, notification methods, revenue dates, HSTS/env
 parsing, image validation, and migration safety.
 
-**The audit changes are currently uncommitted.** Nothing was committed, pushed,
-merged, deployed or run against production during this pass. Do not treat the
-working tree as released code.
+**The audit changes were committed as `f70f1f8` and pushed to**
+**`origin/rebuild/clean-architecture`.** Nothing was merged, deployed or run
+against production. The working tree is clean; deployment and the production
+migration still require explicit approval.
 
 ## 2. Completed
 
@@ -250,13 +251,13 @@ Resolved during the pass:
 ## 8. Git and release state
 
 - Branch: `rebuild/clean-architecture`
-- HEAD: `57c84bc87ee8521762d1fd760480b22ca6a0dda3`
-- `origin/rebuild/clean-architecture` points at the same commit.
-- The audit hardening changes, migrations `0014`/`0015`, new services and new
-  tests are **uncommitted working-tree changes**.
-- Nothing was committed, pushed, merged or deployed in this pass.
+- Audit code commit: `f70f1f8` (`Harden payment, fulfilment and audit workflows`)
+- `origin/rebuild/clean-architecture` contains `f70f1f8`; the working tree is
+  clean after the status documentation update.
+- Migrations `0014`/`0015`, new services, tests and documentation are committed.
+- Nothing was merged, deployed or run against production.
 - No production data, live payment, cPanel setting or server configuration was
   modified.
 
-**Permission is required before committing, pushing, merging or deploying these
-changes.**
+**Deployment, production migration and real-payment verification still require
+explicit approval.**
