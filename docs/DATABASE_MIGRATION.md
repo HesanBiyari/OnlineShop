@@ -21,6 +21,70 @@ migrated to `0012`, integer rows were inserted, then migrated to `0013`. Values
 were preserved and `SHOW COLUMNS` reported `decimal(14,0)`. This does **not**
 replace a backup and a rehearsal on a copy of the production database.
 
+## 1A. What changes in migrations `0014` and `0015`
+
+Source: `store/migrations/0014_audit_hardening.py` and
+`store/migrations/0015_backfill_fulfilment_markers.py`.
+
+| Migration | Change | Risk |
+| --- | --- | --- |
+| `0014` | Adds nullable `order.stock_consumed_at` and `order.fulfillment_notified_at` | Low; no rewrite |
+| `0014` | Adds `initiating` to `Payment.status` choices | No column type change |
+| `0014` | Adds Coupon non-negative/percentage check constraints | Fails if legacy data violates them |
+| `0014` | Adds unique `(coupon, user)` redemption and non-negative redemption amount | Fails if duplicate or negative redemptions exist |
+| `0015` | Backfills fulfilment markers on legacy paid/processing/completed orders | Data-only; conservative, see below |
+
+The data pre-check in `0014` intentionally runs **before any DDL**. MariaDB DDL
+is not transactional; if a later constraint failed after adding columns, the
+migration could be left half-applied. Run these read-only queries on a copy of
+production first:
+
+```sql
+SELECT id, code, kind, value, min_order_amount
+FROM store_coupon
+WHERE value < 0 OR min_order_amount < 0
+   OR (kind = 'percent' AND value > 100);
+
+SELECT id, coupon_id, order_id, user_id, amount
+FROM store_couponredemption
+WHERE amount < 0;
+
+SELECT coupon_id, user_id, COUNT(*) AS uses
+FROM store_couponredemption
+GROUP BY coupon_id, user_id
+HAVING COUNT(*) > 1;
+```
+
+If duplicates exist, take a backup and decide manually which redemption to keep
+(usually the one belonging to a paid/completed order). Then recompute the cached
+counter, do not simply delete rows:
+
+```sql
+SELECT coupon_id, COUNT(*) FROM store_couponredemption GROUP BY coupon_id;
+-- After reviewed cleanup:
+UPDATE store_coupon c
+SET used_count = (
+  SELECT COUNT(*) FROM store_couponredemption r WHERE r.coupon_id = c.id
+);
+```
+
+`0015` cannot know whether a legacy `processing` order had already deducted
+stock: the old schema had no marker. To avoid deducting stock twice, it marks
+every legacy `paid`, `processing` and `completed` order as having consumed stock
+(using `paid_at`, falling back to `created_at`). It also marks completed orders
+as already notified so the migration does not send a burst of old notifications.
+
+**Manual reconciliation is required for legacy `processing` orders that were
+waiting for stock.** If stock was never deducted, the marker suppresses a future
+deduction and the physical stock count is overstated. Staff must review those
+orders, compare them with inventory, and adjust stock manually. Document the
+adjustment and keep the order/audit history. Do not reset `stock_consumed_at` on
+an order unless the stock deduction is verified.
+
+Automated rehearsal: `store/tests/test_migrations.py` migrates down to `0013`,
+inserts paid/pending/processing/completed legacy orders, migrates to `0015`, and
+asserts the markers. It passes on SQLite and MariaDB 11.4.5 locally.
+
 ### Historical migration `0007` note
 
 Migration `0007` was amended in this rebuild to remove two conditional
@@ -136,7 +200,7 @@ mysqldump \
   --single-transaction --quick --routines --triggers \
   --default-character-set=utf8mb4 \
   -h localhost -u DB_USER -p DB_NAME \
-  > /home/CPANEL_USER/backups/giftbaaz-before-0013-$(date +%F-%H%M).sql
+  > /home/CPANEL_USER/backups/giftbaaz-before-0015-$(date +%F-%H%M).sql
 ```
 
 Verify the dump is non-empty and contains `CREATE TABLE`/`INSERT` statements.
@@ -170,7 +234,8 @@ python manage.py showmigrations store
 
 `python manage.py migrate` applies all pending migrations, including Django's
 own `auth`/`admin`/`sessions` migrations if this is a fresh database. On an
-existing production database it should only add `store.0013`.
+existing production database it should add `store.0014` and `store.0015` (and
+`store.0013` first if that migration has not yet been applied).
 
 If the host cannot run long requests, run the command over SSH or cPanel
 Terminal; do not trigger migrations from a web request.
@@ -183,11 +248,25 @@ SHOW COLUMNS FROM store_order          LIKE 'total_amount';
 SHOW COLUMNS FROM store_payment        LIKE 'amount';
 -- Expect: decimal(14,0)
 
+SHOW COLUMNS FROM store_order LIKE 'stock_consumed_at';
+SHOW COLUMNS FROM store_order LIKE 'fulfillment_notified_at';
+-- Expect: datetime(6), NULL allowed
+
 SELECT COUNT(*) FROM store_auditlog;
+
+SELECT status,
+       COUNT(*) AS orders,
+       SUM(stock_consumed_at IS NULL) AS without_stock_marker,
+       SUM(fulfillment_notified_at IS NULL) AS without_delivery_notice
+FROM store_order
+GROUP BY status;
 
 SELECT COUNT(*) AS orders, COALESCE(SUM(total_amount), 0) AS total
 FROM store_order;
 ```
+
+For legacy `processing` rows, compare against the stock reconciliation notes in
+section 1A before trusting the marker.
 
 Compare the counts/sums with the pre-flight baseline. Then:
 
@@ -210,18 +289,17 @@ variables.
 
 ```bash
 mysql -h localhost -u DB_USER -p DB_NAME \
-  < /home/CPANEL_USER/backups/giftbaaz-before-0013-YYYY-MM-DD-HHMM.sql
+  < /home/CPANEL_USER/backups/giftbaaz-before-0015-YYYY-MM-DD-HHMM.sql
 ```
 
-**Django reverse migration** (`python manage.py migrate store 0012`) is possible
-because the field alterations have a reverse, but it is not recommended for
-production:
+**Django reverse migration** (`python manage.py migrate store 0013`) can undo
+`0014`/`0015` because the field additions have a reverse, but it is not
+recommended for production:
 
 - MySQL/MariaDB DDL commits implicitly, so a partially failed migration cannot
   be rolled back atomically.
-- Reversing drops `store_auditlog` and its audit history.
-- Reversing removes the new constraints, returning the database to a weaker
-  state.
+- Reversing `0014` drops the fulfilment markers and the new coupon constraints.
+- Reversing to `0012` would additionally drop `store_auditlog` and its history.
 - If any code has already written decimal values (all whole Toman), the reverse
   to integer is lossless, but this should still be rehearsed on a copy.
 
@@ -247,14 +325,18 @@ python manage.py createsuperuser
 python manage.py collectstatic --noinput
 ```
 
-A fresh install runs `0001` through `0013` directly; the data-conversion concerns
-above only apply to an existing database.
+A fresh install runs `0001` through `0015` directly; the data-conversion and
+legacy-backfill concerns above only apply to an existing database.
 
 ## 9. Notes for reviewers
 
-- Migration `0013` was generated by Django 5.2.17 and `makemigrations --check
-  --dry-run` reports no pending model changes.
-- The suite passes on both SQLite and MariaDB 11.4.5, including the migration
-  path.
+- Migrations `0013` and `0014` were generated by Django 5.2.17 and
+  `makemigrations --check --dry-run` reports no pending model changes.
+- The suite passes on both SQLite and MariaDB 11.4.5, including an automated
+  `0013 -> 0015` migration rehearsal with legacy paid/pending/processing/
+  completed rows.
 - Production execution and timing on the real data volume remain unverified
   because server/database access was not available.
+- The `0014` precheck intentionally runs before DDL. MariaDB DDL is not
+  transactional; if data must be cleaned, do it on a backup and re-run the
+  migration from a known state.

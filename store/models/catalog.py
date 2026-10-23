@@ -190,7 +190,38 @@ class ProductImage(models.Model):
     def __str__(self) -> str:
         return f"{self.product.name} - Image"
 
+    def _validate_uploaded_image(self) -> None:
+        # Import lazily: store.services.images imports this model at module
+        # import time. The call happens after Django has loaded the app registry.
+        from django.core.files.uploadedfile import UploadedFile
+
+        from store.services.images import validate_image_upload
+
+        uploaded = self.image
+        # ImageFieldFile wraps the originally assigned UploadedFile. Admin and
+        # direct model saves both end up here, so unwrap before validating.
+        try:
+            inner = getattr(uploaded, "file", None)
+        except (OSError, ValueError):
+            # The stored file is missing; editing metadata must not 500. A new
+            # upload will be validated normally.
+            inner = None
+        if isinstance(inner, UploadedFile):
+            uploaded = inner
+        if uploaded and isinstance(uploaded, UploadedFile):
+            error = validate_image_upload(uploaded)
+            if error:
+                raise ValidationError({"image": error})
+
+    def clean(self) -> None:
+        super().clean()
+        self._validate_uploaded_image()
+
     def save(self, *args, **kwargs):
+        # Admin calls full_clean(), but other callers may save an UploadedFile
+        # directly. Validate again at the persistence boundary so no path can
+        # bypass size, format and dimension checks.
+        self._validate_uploaded_image()
         with transaction.atomic():
             # Serialise image ordering per product on databases that support row
             # locks (MySQL/MariaDB/PostgreSQL). SQLite ignores the lock.
@@ -238,7 +269,17 @@ class Discount(models.Model):
         return f"{self.product.name} - {self.percent}%"
 
     def clean(self) -> None:
-        if not 0 <= self.percent <= 100:
+        if self.percent is None:
+            raise ValidationError(
+                {"percent": "درصد تخفیف باید بین ۰ تا ۱۰۰ باشد."}
+            )
+        try:
+            percent = int(self.percent)
+        except (TypeError, ValueError):
+            raise ValidationError(
+                {"percent": "درصد تخفیف باید عددی بین ۰ تا ۱۰۰ باشد."}
+            )
+        if not 0 <= percent <= 100:
             raise ValidationError({"percent": "درصد تخفیف باید بین ۰ تا ۱۰۰ باشد."})
         if self.starts_at and self.ends_at and self.starts_at > self.ends_at:
             raise ValidationError(

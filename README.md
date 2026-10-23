@@ -16,7 +16,7 @@ store/services/         منطق کسب‌وکار: سبد، قیمت، پردا
 store/selectors/        کوئری‌های خواندنی
 store/forms/            فرم‌های احراز هویت و پنل کارکنان
 store/views/            نماهای عمومی و پنل کارکنان
-store/tests/            تست‌های خودکار (۸۲ تست)
+store/tests/            تست‌های خودکار (۱۵۵ تست)
 templates/              قالب‌های عمومی، پنل کارکنان و صفحه‌های خطا
 static/                 دارایی‌های ظاهری (هویت تیره بنفش/فیروزه‌ای)
 docs/                   مستندات معماری، مهاجرت، استقرار، امنیت و آزمون
@@ -84,7 +84,7 @@ ZARINPAL_SANDBOX=false
 
 ```bash
 # تنظیمات تست (SQLite در حافظه)
-DJANGO_ENV=test python manage.py test store
+DJANGO_ENV=test python manage.py test
 
 # بررسی‌های پایه
 DJANGO_ENV=test python manage.py check
@@ -114,7 +114,7 @@ DJANGO_ENV=production python manage.py collectstatic --noinput
 | --- | --- |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | لایه‌ها، جریان درخواست، قواعد پول و همزمانی |
 | [`docs/FEATURE_AUDIT.md`](docs/FEATURE_AUDIT.md) | فهرست قابلیت‌های حفظ‌شده و وضعیت آن‌ها |
-| [`docs/DATABASE_MIGRATION.md`](docs/DATABASE_MIGRATION.md) | مهاجرت ایمن `0012 → 0013` روی MariaDB |
+| [`docs/DATABASE_MIGRATION.md`](docs/DATABASE_MIGRATION.md) | مهاجرت ایمن `0013 → 0015` روی MariaDB |
 | [`docs/DEPLOYMENT_CPANEL.md`](docs/DEPLOYMENT_CPANEL.md) | استقرار cPanel/Passenger |
 | [`docs/TESTING.md`](docs/TESTING.md) | تست‌های خودکار، نتایج و محدودیت‌ها |
 | [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) | مدل تهدید، کنترل‌ها و ریسک‌های باقی‌مانده |
@@ -126,11 +126,13 @@ DJANGO_ENV=production python manage.py collectstatic --noinput
 - شروع پرداخت `POST` + CSRF است؛ بازگشت درگاه authority، مبلغ و سفارش را بررسی می‌کند و تکراری‌پذیر است.
 - تحویل کد دیجیتال به‌صورت «همه یا هیچ» برای هر خط سفارش و تحت قفل ردیف انجام می‌شود.
 - کدها و PINها فقط برای کاربر مجاز دیده می‌شوند؛ خروجی/ورودی CSV نیازمند مجوز و ثبت در `AuditLog` است.
-- رسیدگی به سفارش‌های پرداخت‌شده اما تحویل‌نشده با cron:
+- پرداخت‌های نیمه‌کاره در وضعیت `verifying` و سفارش‌های پرداخت‌شده اما تحویل‌نشده با cron:
 
 ```bash
 python manage.py process_orders
 ```
+
+- HSTS به‌صورت اختیاری با `DJANGO_SECURE_HSTS_SECONDS` فعال می‌شود؛ تا زمانی که HTTPS واقعی تأیید نشده، `check --deploy` دربارهٔ آن هشدار می‌دهد.
 
 ## وضعیت
 

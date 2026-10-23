@@ -2,18 +2,21 @@
 
 from django import template
 from django.db.models import Sum
-from django.utils import timezone
 
 from store.models import DigitalCode, Order, Payment, Product
+from store.services.reporting import local_day_bounds
 
 register = template.Library()
 
 
 @register.simple_tag
 def sales_today():
+    start, end = local_day_bounds()
     value = (
         Order.objects.filter(
-            status__in=Order.PAID_STATUSES, created_at__date=timezone.localdate()
+            status__in=Order.PAID_STATUSES,
+            paid_at__gte=start,
+            paid_at__lt=end,
         ).aggregate(total=Sum("total_amount"))["total"]
         or 0
     )
@@ -22,7 +25,10 @@ def sales_today():
 
 @register.simple_tag
 def orders_today():
-    return Order.objects.filter(created_at__date=timezone.localdate()).count()
+    start, end = local_day_bounds()
+    return Order.objects.filter(
+        created_at__gte=start, created_at__lt=end
+    ).count()
 
 
 @register.simple_tag

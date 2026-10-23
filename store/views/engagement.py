@@ -129,9 +129,21 @@ def coupon_remove(request):
 @login_required
 def notifications(request):
     rows = Notification.objects.filter(user=request.user)
-    unread = rows.filter(is_read=False)
-    unread.update(is_read=True)
-    return render(request, "notifications.html", {"notifications": rows})
+    unread_count = rows.filter(is_read=False).count()
+    return render(
+        request,
+        "notifications.html",
+        {"notifications": rows, "unread_count": unread_count},
+    )
+
+
+@login_required
+@require_POST
+def notifications_mark_read(request):
+    Notification.objects.filter(user=request.user, is_read=False).update(
+        is_read=True
+    )
+    return redirect("notifications")
 
 
 @login_required

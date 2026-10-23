@@ -39,7 +39,14 @@ def env_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None or value.strip() == "":
         return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(
+        f"{name} must be one of true/false, 1/0, yes/no, on/off; got {value!r}"
+    )
 
 
 def env_int(name: str, default: int) -> int:

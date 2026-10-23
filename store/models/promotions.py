@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, InvalidOperation
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from .common import money_field
@@ -30,6 +31,22 @@ class Coupon(models.Model):
     ends_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(value__gte=0),
+                name="coupon_value_gte_0",
+            ),
+            models.CheckConstraint(
+                condition=Q(min_order_amount__gte=0),
+                name="coupon_min_order_gte_0",
+            ),
+            models.CheckConstraint(
+                condition=~Q(kind="percent") | Q(value__lte=100),
+                name="coupon_percent_lte_100",
+            ),
+        ]
+
     def __str__(self) -> str:
         return self.code
 
@@ -38,7 +55,18 @@ class Coupon(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self) -> None:
-        if self.kind == self.KIND_PERCENT and self.value > 100:
+        try:
+            value = Decimal(self.value)
+            minimum = Decimal(self.min_order_amount)
+        except (TypeError, ValueError, InvalidOperation):
+            raise ValidationError(
+                {"value": "مقدار کوپن و حداقل مبلغ سفارش باید عدد معتبر باشند."}
+            )
+        if value < 0 or minimum < 0:
+            raise ValidationError(
+                {"value": "مقدار کوپن و حداقل مبلغ سفارش نمی‌توانند منفی باشند."}
+            )
+        if self.kind == self.KIND_PERCENT and value > 100:
             raise ValidationError({"value": "درصد باید بین ۰ و ۱۰۰ باشد."})
         if self.starts_at and self.ends_at and self.starts_at > self.ends_at:
             raise ValidationError(
@@ -55,18 +83,39 @@ class Coupon(models.Model):
             and (self.usage_limit is None or self.used_count < self.usage_limit)
         )
 
+    def reservation_window_is_valid(self) -> bool:
+        """Whether an existing reservation may still be honoured.
+
+        ``is_valid_now`` includes the usage limit. A reservation already
+        incremented ``used_count``, so checking that counter again would reject
+        the very order that owns the reservation. The reservation is valid until
+        the order expires or the coupon's time window/active flag changes.
+        """
+
+        now = timezone.now()
+        return (
+            self.is_active
+            and (not self.starts_at or now >= self.starts_at)
+            and (not self.ends_at or now <= self.ends_at)
+        )
+
     def discount_for(self, amount: Decimal | int) -> Decimal:
         """Discount for an order total, never more than the total itself."""
 
-        amount = Decimal(amount)
-        if amount < Decimal(self.min_order_amount) or not self.is_valid_now:
+        try:
+            amount = Decimal(amount)
+            minimum = Decimal(self.min_order_amount or 0)
+            value = Decimal(self.value or 0)
+        except (TypeError, ValueError, InvalidOperation):
+            return Decimal("0")
+        if amount < minimum or not self.is_valid_now:
             return Decimal("0")
         if self.kind == self.KIND_PERCENT:
-            raw = (amount * Decimal(self.value) / Decimal(100)).quantize(
+            raw = (amount * value / Decimal(100)).quantize(
                 Decimal("1"), rounding=ROUND_FLOOR
             )
         else:
-            raw = Decimal(self.value)
+            raw = value
         return max(Decimal("0"), min(amount, raw))
 
 
@@ -84,6 +133,18 @@ class CouponRedemption(models.Model):
     )
     amount = money_field(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("coupon", "user"),
+                name="unique_coupon_redemption_user",
+            ),
+            models.CheckConstraint(
+                condition=Q(amount__gte=0),
+                name="coupon_redemption_amount_gte_0",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.coupon.code} - Order #{self.order_id}"

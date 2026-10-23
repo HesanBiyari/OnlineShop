@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from types import SimpleNamespace
@@ -15,7 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import (
     F,
     IntegerField,
@@ -69,8 +70,11 @@ from store.models import (
 )
 from store.services.audit import client_ip, log_action
 from store.services.images import save_product_images, validate_image_upload
+from store.services.reporting import local_day_bounds
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -264,14 +268,38 @@ def _guard_resource(request, resource: StaffResource, *, write: bool = False):
         raise PermissionDenied
     if resource.key == "codes":
         if write:
-            action = "add" if request.resolver_match.url_name == "admin_model_create" else "change"
-            if request.resolver_match.url_name == "admin_model_delete":
+            url_name = getattr(request.resolver_match, "url_name", "")
+            if url_name == "admin_model_create":
+                action = "add"
+            elif url_name == "admin_model_delete":
                 action = "delete"
+            else:
+                action = "change"
+            if action in {"change", "delete"} and not can_view_codes(request.user):
+                raise PermissionDenied
             if not _can_write_codes(request.user, action):
                 raise PermissionDenied
         elif not can_view_codes(request.user):
             raise PermissionDenied
     return None
+
+
+def _can_create_resource(resource: StaffResource, user) -> bool:
+    if resource.key == "codes":
+        return _can_write_codes(user, "add")
+    return True
+
+
+def _can_edit_resource(resource: StaffResource, user) -> bool:
+    if resource.key == "codes":
+        return can_view_codes(user) and _can_write_codes(user, "change")
+    return True
+
+
+def _can_delete_resource(resource: StaffResource, user) -> bool:
+    if resource.key == "codes":
+        return can_view_codes(user) and _can_write_codes(user, "delete")
+    return True
 
 
 FIELD_LABELS = {
@@ -392,7 +420,15 @@ def _form(resource: StaffResource, request, instance=None):
     return resource.form(**kwargs)
 
 
-def _audit(request, action: str, resource: StaffResource, obj, details=None):
+def _audit(
+    request,
+    action: str,
+    resource: StaffResource,
+    obj,
+    details=None,
+    *,
+    required: bool = False,
+):
     try:
         log_action(
             action=action,
@@ -402,8 +438,12 @@ def _audit(request, action: str, resource: StaffResource, obj, details=None):
             details=details or {},
             request=request,
         )
-    except Exception:  # pragma: no cover - auditing must not break the panel
-        pass
+    except Exception:
+        logger.exception(
+            "Audit log write failed action=%s resource=%s", action, resource.key
+        )
+        if required:
+            raise
 
 
 # ---------------------------------------------------------------------------
@@ -415,19 +455,24 @@ def dashboard(request):
         return redirect(f"{reverse('admin:login')}?next={request.path}")
 
     today = timezone.localdate()
+    today_start, today_end = local_day_bounds(today)
     paid_statuses = Order.PAID_STATUSES
 
-    orders_today = Order.objects.filter(created_at__date=today).count()
+    orders_today = Order.objects.filter(
+        created_at__gte=today_start, created_at__lt=today_end
+    ).count()
     sales_today = (
         Order.objects.filter(
-            status__in=paid_statuses, created_at__date=today
+            status__in=paid_statuses,
+            paid_at__gte=today_start,
+            paid_at__lt=today_end,
         ).aggregate(value=Sum("total_amount"))["value"]
         or 0
     )
     revenue = (
-        Order.objects.filter(status__in=paid_statuses).aggregate(
-            value=Sum("total_amount")
-        )["value"]
+        Order.objects.filter(
+            status__in=paid_statuses, paid_at__isnull=False
+        ).aggregate(value=Sum("total_amount"))["value"]
         or 0
     )
 
@@ -446,9 +491,12 @@ def dashboard(request):
     chart = []
     for offset in range(6, -1, -1):
         day = today - timedelta(days=offset)
+        day_start, day_end = local_day_bounds(day)
         amount = (
             Order.objects.filter(
-                status__in=paid_statuses, created_at__date=day
+                status__in=paid_statuses,
+                paid_at__gte=day_start,
+                paid_at__lt=day_end,
             ).aggregate(value=Sum("total_amount"))["value"]
             or 0
         )
@@ -525,9 +573,20 @@ def model_list(request, key):
             "nav": _nav_for(request.user),
             "active": key,
             "query": query,
-            "can_create": resource.can_create and resource.form is not None,
-            "can_edit": resource.can_edit and resource.form is not None,
-            "can_delete": resource.can_delete,
+            "can_create": (
+                resource.can_create
+                and resource.form is not None
+                and _can_create_resource(resource, request.user)
+            ),
+            "can_edit": (
+                resource.can_edit
+                and resource.form is not None
+                and _can_edit_resource(resource, request.user)
+            ),
+            "can_delete": (
+                resource.can_delete
+                and _can_delete_resource(resource, request.user)
+            ),
             "readonly": not resource.can_edit,
         },
     )
@@ -545,7 +604,11 @@ def _render_form(request, resource, form, *, obj=None):
             "nav": _nav_for(request.user),
             "active": resource.key,
             "image_errors": [],
-            "can_delete": resource.can_delete and obj is not None,
+            "can_delete": (
+                resource.can_delete
+                and obj is not None
+                and _can_delete_resource(resource, request.user)
+            ),
         },
     )
 
@@ -565,9 +628,20 @@ def model_create(request, key):
 
     if request.method == "POST" and form.is_valid():
         if key == "groups":
-            group = Group.objects.create(name=form.cleaned_data["name"])
-            group.permissions.set(form.cleaned_data["permissions"])
-            _audit(request, AuditLog.ACTION_STAFF_EDIT, resource, group)
+            try:
+                with transaction.atomic():
+                    group = Group.objects.create(name=form.cleaned_data["name"])
+                    group.permissions.set(form.cleaned_data["permissions"])
+                    _audit(
+                        request,
+                        AuditLog.ACTION_STAFF_EDIT,
+                        resource,
+                        group,
+                        required=True,
+                    )
+            except IntegrityError:
+                form.add_error("name", "گروهی با این نام وجود دارد.")
+                return _render_form(request, resource, form)
             messages.success(request, "گروه دسترسی ایجاد شد.")
             return redirect("admin_model_list", key=key)
 
@@ -582,7 +656,23 @@ def model_create(request, key):
                 form.add_error(None, "؛ ".join(errors))
                 return _render_form(request, resource, form)
 
-        obj = form.save()
+        if resource.sensitive:
+            try:
+                with transaction.atomic():
+                    obj = form.save()
+                    _audit(
+                        request,
+                        AuditLog.ACTION_STAFF_EDIT,
+                        resource,
+                        obj,
+                        required=True,
+                    )
+            except IntegrityError:
+                form.add_error(None, "ذخیره‌سازی به دلیل تعارض داده انجام نشد.")
+                return _render_form(request, resource, form)
+        else:
+            obj = form.save()
+
         if key == "products" and uploads:
             image_errors = save_product_images(
                 obj,
@@ -593,7 +683,8 @@ def model_create(request, key):
             if image_errors:
                 messages.error(request, "؛ ".join(image_errors))
 
-        _audit(request, AuditLog.ACTION_STAFF_EDIT, resource, obj)
+        if not resource.sensitive:
+            _audit(request, AuditLog.ACTION_STAFF_EDIT, resource, obj)
         messages.success(request, "مورد جدید با موفقیت ایجاد شد.")
         return redirect("admin_model_edit", key=key, pk=obj.pk)
 
@@ -613,6 +704,9 @@ def model_edit(request, key, pk):
 
     obj = get_object_or_404(resource.model.objects.all(), pk=pk)
 
+    if key == "codes" and (obj.is_used or obj.order_item_id):
+        raise PermissionDenied
+
     if key == "users" and not request.user.is_superuser:
         if obj.is_staff or obj.is_superuser:
             raise PermissionDenied
@@ -622,10 +716,21 @@ def model_edit(request, key, pk):
 
     if request.method == "POST" and form.is_valid():
         if key == "groups":
-            obj.name = form.cleaned_data["name"]
-            obj.save(update_fields=["name"])
-            obj.permissions.set(form.cleaned_data["permissions"])
-            _audit(request, AuditLog.ACTION_STAFF_EDIT, resource, obj)
+            try:
+                with transaction.atomic():
+                    obj.name = form.cleaned_data["name"]
+                    obj.save(update_fields=["name"])
+                    obj.permissions.set(form.cleaned_data["permissions"])
+                    _audit(
+                        request,
+                        AuditLog.ACTION_STAFF_EDIT,
+                        resource,
+                        obj,
+                        required=True,
+                    )
+            except IntegrityError:
+                form.add_error("name", "گروهی با این نام وجود دارد.")
+                return _render_form(request, resource, form, obj=obj)
             messages.success(request, "تغییرات ذخیره شد.")
             return redirect("admin_model_list", key=key)
 
@@ -640,7 +745,33 @@ def model_edit(request, key, pk):
                 form.add_error(None, "؛ ".join(errors))
                 return _render_form(request, resource, form)
 
-        obj = form.save()
+        if resource.sensitive:
+            try:
+                with transaction.atomic():
+                    obj = form.save()
+                    action = (
+                        AuditLog.ACTION_ORDER_STATUS
+                        if key == "orders"
+                        else AuditLog.ACTION_STAFF_EDIT
+                    )
+                    details = (
+                        {"from": old_status, "to": obj.status}
+                        if key == "orders"
+                        else {"changed": list(form.changed_data)}
+                    )
+                    _audit(
+                        request,
+                        action,
+                        resource,
+                        obj,
+                        details,
+                        required=True,
+                    )
+            except IntegrityError:
+                form.add_error(None, "ذخیره‌سازی به دلیل تعارض داده انجام نشد.")
+                return _render_form(request, resource, form, obj=obj)
+        else:
+            obj = form.save()
 
         if key == "products" and uploads:
             image_errors = save_product_images(
@@ -652,22 +783,8 @@ def model_edit(request, key, pk):
             if image_errors:
                 messages.error(request, "؛ ".join(image_errors))
 
-        if key == "orders":
-            _audit(
-                request,
-                AuditLog.ACTION_ORDER_STATUS,
-                resource,
-                obj,
-                {"from": old_status, "to": obj.status},
-            )
-        elif resource.sensitive:
-            _audit(
-                request,
-                AuditLog.ACTION_STAFF_EDIT,
-                resource,
-                obj,
-                {"changed": list(form.changed_data)},
-            )
+        if not resource.sensitive:
+            _audit(request, AuditLog.ACTION_STAFF_EDIT, resource, obj)
 
         messages.success(request, "تغییرات با موفقیت ذخیره شد.")
         return redirect("admin_model_list", key=key)
@@ -689,6 +806,9 @@ def model_delete(request, key, pk):
 
     obj = get_object_or_404(resource.model.objects.all(), pk=pk)
 
+    if key == "codes" and (obj.is_used or obj.order_item_id):
+        raise PermissionDenied
+
     if key == "users":
         if obj.pk == request.user.pk:
             messages.error(request, "حساب مدیر فعلی قابل حذف نیست.")
@@ -697,20 +817,33 @@ def model_delete(request, key, pk):
             raise PermissionDenied
 
     try:
-        _audit(
-            request,
-            AuditLog.ACTION_STAFF_EDIT,
-            resource,
-            obj,
-            {"deleted": str(obj)},
-        )
-        obj.delete()
+        with transaction.atomic():
+            deleted_pk = obj.pk
+            details = {"deleted": str(obj)}
+            obj.delete()
+            _audit(
+                request,
+                AuditLog.ACTION_STAFF_EDIT,
+                resource,
+                SimpleNamespace(pk=deleted_pk),
+                details,
+                required=resource.sensitive,
+            )
         messages.success(request, "مورد با موفقیت حذف شد.")
     except ProtectedError:
         messages.error(
             request,
             "این مورد به سفارش یا داده دیگری متصل است و قابل حذف نیست.",
         )
+    except Exception as exc:
+        # A sensitive deletion must not be committed without its audit row.
+        logger.exception("Sensitive staff deletion failed for %s", resource.key)
+        messages.error(
+            request,
+            "حذف انجام نشد؛ ثبت گزارش امنیتی یا حذف داده کامل نشد.",
+        )
+        if not resource.sensitive:
+            raise exc
 
     return redirect("admin_model_list", key=key)
 
@@ -734,11 +867,11 @@ def codes_export(request):
     if not can_view_codes(request.user):
         raise PermissionDenied
 
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="giftbaaz-digital-codes.csv"'
-    response["Cache-Control"] = "no-store"
-    response.write("\ufeff")
-    writer = csv.writer(response)
+    # Build the complete CSV before writing the audit row. If auditing fails,
+    # no code is ever sent to the browser.
+    output = io.StringIO()
+    output.write("\ufeff")
+    writer = csv.writer(output)
     writer.writerow(
         [
             "code",
@@ -765,13 +898,27 @@ def codes_export(request):
         )
         count += 1
 
-    _audit(
-        request,
-        AuditLog.ACTION_DIGITAL_EXPORT,
-        RESOURCES["codes"],
-        SimpleNamespace(pk=""),
-        {"rows": count},
+    try:
+        _audit(
+            request,
+            AuditLog.ACTION_DIGITAL_EXPORT,
+            RESOURCES["codes"],
+            SimpleNamespace(pk=""),
+            {"rows": count},
+            required=True,
+        )
+    except Exception:
+        return HttpResponse(
+            "ثبت گزارش امنیتی خروجی ممکن نشد؛ خروجی ارسال نشد.",
+            status=500,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    response = HttpResponse(
+        output.getvalue(), content_type="text/csv; charset=utf-8"
     )
+    response["Content-Disposition"] = 'attachment; filename="giftbaaz-digital-codes.csv"'
+    response["Cache-Control"] = "no-store"
     return response
 
 
@@ -782,7 +929,6 @@ def codes_import(request):
     if not (
         request.user.is_superuser
         or request.user.has_perm("store.add_digitalcode")
-        or request.user.has_perm("store.export_digitalcode")
     ):
         raise PermissionDenied
 
@@ -825,16 +971,22 @@ def codes_import(request):
         variants = dict(
             ProductVariant.objects.values_list("id", "product_id")
         )
-        existing = set(DigitalCode.objects.values_list("code", flat=True))
+        existing = {
+            code.casefold()
+            for code in DigitalCode.objects.values_list("code", flat=True)
+        }
         seen: set[str] = set()
         to_create: list[DigitalCode] = []
         duplicates = invalid = 0
 
         for row in rows:
             code = (row.get("code") or "").strip()
-            if not code or len(code) > 255 or code in existing or code in seen:
-                duplicates += 1 if code else 0
-                invalid += 0 if code else 1
+            folded = code.casefold()
+            if not code or len(code) > 255:
+                invalid += 1
+                continue
+            if folded in existing or folded in seen:
+                duplicates += 1
                 continue
             try:
                 product_id = int(row.get("product_id") or "")
@@ -859,18 +1011,39 @@ def codes_import(request):
                     variant_id=variant_id,
                 )
             )
-            seen.add(code)
+            seen.add(folded)
 
-        with transaction.atomic():
-            DigitalCode.objects.bulk_create(to_create, batch_size=500)
+        try:
+            with transaction.atomic():
+                if to_create:
+                    DigitalCode.objects.bulk_create(to_create, batch_size=500)
+                _audit(
+                    request,
+                    AuditLog.ACTION_DIGITAL_IMPORT,
+                    RESOURCES["codes"],
+                    SimpleNamespace(pk=""),
+                    {
+                        "created": len(to_create),
+                        "duplicates": duplicates,
+                        "invalid": invalid,
+                    },
+                    required=True,
+                )
+        except IntegrityError:
+            logger.exception("Digital-code import hit a database constraint")
+            messages.error(
+                request,
+                "واردسازی انجام نشد؛ کدها با داده موجود یا یکدیگر تعارض دارند.",
+            )
+            return redirect("codes_import")
+        except Exception:
+            logger.exception("Digital-code import failed and was rolled back")
+            messages.error(
+                request,
+                "واردسازی انجام نشد؛ ثبت گزارش امنیتی یا ذخیره داده کامل نشد.",
+            )
+            return redirect("codes_import")
 
-        _audit(
-            request,
-            AuditLog.ACTION_DIGITAL_IMPORT,
-            RESOURCES["codes"],
-            SimpleNamespace(pk=""),
-            {"created": len(to_create), "duplicates": duplicates, "invalid": invalid},
-        )
         messages.success(
             request,
             f"{len(to_create)} کد وارد شد؛ {duplicates} تکراری و {invalid} ردیف نامعتبر نادیده گرفته شد.",
@@ -891,14 +1064,17 @@ def analytics(request):
 
     paid = Order.PAID_STATUSES
     revenue = (
-        Order.objects.filter(status__in=paid).aggregate(
-            value=Sum("total_amount")
-        )["value"]
+        Order.objects.filter(
+            status__in=paid, paid_at__isnull=False
+        ).aggregate(value=Sum("total_amount"))["value"]
         or 0
     )
+    today_start, today_end = local_day_bounds()
     today = (
         Order.objects.filter(
-            status__in=paid, created_at__date=timezone.localdate()
+            status__in=paid,
+            paid_at__gte=today_start,
+            paid_at__lt=today_end,
         ).aggregate(value=Sum("total_amount"))["value"]
         or 0
     )

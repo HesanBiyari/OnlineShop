@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from store.models import (
     Coupon,
@@ -24,6 +26,7 @@ from store.services.payments import (
     OUTCOME_INVALID,
     OUTCOME_VERIFY_ERROR,
     process_callback,
+    reconcile_verifying_payments,
     start_payment,
 )
 
@@ -128,7 +131,19 @@ class CallbackTests(TestCase):
         self.assertEqual(
             LoyaltyTransaction.objects.filter(order=order, reason="خرید").count(), 1
         )
-        self.assertEqual(Notification.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(user=self.user).count(), 2
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.user, title="پرداخت موفق"
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.user, title="سفارش تکمیل شد"
+            ).exists()
+        )
         self.assertEqual(gateway.verify_calls, [(Decimal("100000"), "AUTH-OK")])
 
     def test_duplicate_callback_is_idempotent(self):
@@ -178,8 +193,10 @@ class CallbackTests(TestCase):
         with patch("store.services.payments.get_gateway", return_value=gateway):
             response = self._callback(order)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(Payment.objects.get(order=order).status, Payment.STATUS_FAILED)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_CANCELED)
         coupon.refresh_from_db()
         self.assertEqual(coupon.used_count, 0)
         self.assertFalse(CouponRedemption.objects.filter(order=order).exists())
@@ -200,11 +217,54 @@ class CallbackTests(TestCase):
         self.assertEqual(Payment.objects.get(order=order).status, Payment.STATUS_VERIFYING)
         self.assertTrue(CouponRedemption.objects.filter(order=order).exists())
 
+    def test_reconciliation_confirms_stale_verifying_payment_once(self):
+        order, _ = self._order()
+        digital_code(self.product, "RECON-1", variant=self.variant)
+        offline = FakeGateway(
+            verify_result=GatewayResult(False, code="NETWORK", message="offline")
+        )
+        with patch("store.services.payments.get_gateway", return_value=offline):
+            self._callback(order)
+        Payment.objects.filter(order=order).update(
+            updated_at=timezone.now() - timedelta(minutes=10)
+        )
+
+        online = FakeGateway()
+        with patch("store.services.payments.get_gateway", return_value=online):
+            self.assertEqual(reconcile_verifying_payments(), 1)
+            self.assertEqual(reconcile_verifying_payments(), 0)
+
+        order.refresh_from_db()
+        payment = Payment.objects.get(order=order)
+        self.assertEqual(payment.status, Payment.STATUS_PAID)
+        self.assertEqual(order.status, Order.STATUS_COMPLETED)
+        self.assertEqual(order.items.first().digital_codes.count(), 1)
+        self.assertEqual(len(online.verify_calls), 1)
+
+    def test_amount_mismatch_never_calls_gateway_or_marks_paid(self):
+        order, _ = self._order()
+        Payment.objects.filter(order=order).update(amount=Decimal("1"))
+        gateway = FakeGateway()
+        with patch("store.services.payments.get_gateway", return_value=gateway):
+            response = self._callback(order)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(gateway.verify_calls, [])
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_PENDING)
+        self.assertEqual(
+            Payment.objects.get(order=order).status, Payment.STATUS_REDIRECTED
+        )
+
     def test_user_cancel_marks_payment_canceled(self):
         order, _ = self._order()
         response = self._callback(order, query="Status=NOK&Authority=AUTH-OK")
-        self.assertRedirects(response, reverse("payment", args=[order.pk]))
+        self.assertRedirects(
+            response, reverse("checkout"), target_status_code=302
+        )
         self.assertEqual(Payment.objects.get(order=order).status, Payment.STATUS_CANCELED)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_CANCELED)
 
     def test_paid_order_is_never_downgraded(self):
         order, item = self._order(status=Order.STATUS_COMPLETED)

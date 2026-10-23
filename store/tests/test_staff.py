@@ -8,6 +8,7 @@ from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from store.models import AuditLog, DigitalCode, Order, Product
 
@@ -109,7 +110,8 @@ class OrderEditingTests(TestCase):
 
     def test_money_fields_cannot_be_edited(self):
         self.order.status = Order.STATUS_PAID
-        self.order.save(update_fields=["status"])
+        self.order.stock_consumed_at = timezone.now()
+        self.order.save(update_fields=["status", "stock_consumed_at"])
         self.client.force_login(self.staff)
         response = self.client.post(
             reverse("admin_model_edit", args=["orders", self.order.pk]),

@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from store.models import (
     Coupon,
@@ -79,12 +79,17 @@ def create_order_from_cart(request, cleaned_data: dict) -> Order:
         if coupon is not None:
             coupon.used_count += 1
             coupon.save(update_fields=["used_count"])
-            CouponRedemption.objects.create(
-                coupon=coupon,
-                order=order,
-                user=request.user,
-                amount=discount,
-            )
+            try:
+                CouponRedemption.objects.create(
+                    coupon=coupon,
+                    order=order,
+                    user=request.user,
+                    amount=discount,
+                )
+            except IntegrityError as exc:
+                raise CouponNoLongerValidError(
+                    "این کد تخفیف قبلاً توسط شما استفاده شده است."
+                ) from exc
             request.session.pop("coupon_code", None)
             request.session.pop("coupon_discount", None)
             request.session.modified = True

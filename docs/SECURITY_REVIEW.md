@@ -56,14 +56,20 @@ tool, or production access was available.
 
 - Customer order/payment views filter by `request.user`; a non-owner gets 404.
 - Staff panel requires `is_staff`.
-- Digital code list/export requires `store.export_digitalcode`; code
-  add/change/delete require the matching model permission.
-- `groups` and `audit` are superuser-only.
+- Digital code list/view/export requires `store.export_digitalcode`; code
+  add/change/delete require the matching model permission, and change/delete
+  also require export so a blind edit is impossible.
+- `groups` and `audit` are superuser-only. The audit log is append-only in both
+  the custom panel and Django admin (no add/change/delete, including superuser).
 - Non-superusers cannot edit staff/superuser accounts or grant privileges.
 - Django admin code screens require export permission for view/change/module
   access and model permissions for add/delete.
-- Payments and order items are read-only in the panel; order money/ownership is
-  not editable; paid status cannot be set manually.
+- Orders cannot be added or deleted in Django admin; they originate only in
+  checkout. Payments and order items are read-only in the panel; order
+  money/ownership is not editable; paid status cannot be set manually.
+- Manual cancellation is refused while a payment is `redirected` or `verifying`
+  to avoid racing with a real capture. Paid orders require the refund flow and
+  cannot be canceled from staff screens.
 - `robots.txt` disallows staff/account/payment paths (defence in depth, not
   access control).
 
@@ -92,16 +98,25 @@ tool, or production access was available.
 ### Payments
 
 - Initiation is POST + CSRF and owner-only; non-pending orders cannot be paid.
+- Initiation atomically claims an `initiating` state before the network call, so
+  concurrent requests cannot create multiple live authorities. A stale claim can
+  be retried after a short timeout.
 - Gateway network calls happen outside database transactions.
-- The callback requires the order, a payment row, and an exact authority match.
+- The callback requires the order, a payment row, an exact authority match and
+  a payment amount equal to the server-side order total.
 - Verification uses the server-side order total, not a client value.
 - `order.is_paid` is rechecked under a row lock; duplicate callbacks cannot
   deduct stock or deliver codes twice.
-- A paid order is never downgraded.
+- A paid order is never downgraded. Definitive failure cancels the order and
+  releases the coupon; a user cancel records the payment as canceled, while a
+  verification failure records it as failed.
 - Network/verify uncertainty leaves a retryable `verifying` state; coupons are
-  not released on an inconclusive result.
-- A successful payment with insufficient stock is kept `processing` for manual
-  fulfilment.
+  not released on an inconclusive result. Cron re-verifies stale attempts once
+  and cannot create a second authority.
+- A successful payment with insufficient stock is kept `processing`; cron retries
+  the missing step. Money is recorded before fulfilment and is never discarded.
+- Fully discounted (zero-total) orders use the same paid-order fulfilment path
+  after re-checking lines, redemption and payment amount; no gateway is called.
 
 ### Digital delivery and exports
 
@@ -110,16 +125,19 @@ tool, or production access was available.
   line and leaves the order `processing`.
 - Repeated delivery calls assign nothing new.
 - Codes/PINs are shown only on the owner's order detail after assignment.
+- Delivered/assigned codes are immutable: single and bulk delete/save paths
+  re-lock the row, so a concurrent delivery cannot be overwritten or deleted.
 - CSV export requires explicit permission, sets `Cache-Control: no-store`, and
-  writes an audit row. Imports validate size/rows/product/variant/duplicates and
-  write an audit row.
+  writes an audit row. Imports validate size/rows/product/variant/duplicates,
+  compare casefolded values before insert, and write an audit row.
 - CSVs are UTF-8 with BOM for Excel compatibility.
 
 ### Uploads
 
 - Product images are limited by size and dimensions and verified with Pillow.
 - Only JPEG/PNG/WEBP/GIF are accepted; MIME type is checked when provided.
-- All uploads are validated before any file is saved.
+- All uploads are validated before any file is saved. The model unwraps the
+  `ImageFieldFile` so Django admin/forms cannot bypass validation.
 - Media must be served by the web server with script execution disabled (see
   deployment guide).
 
@@ -128,6 +146,9 @@ tool, or production access was available.
 - `AuditLog` records code exports/imports, staff object changes, order status
   changes and login lockouts, with actor, target, IP (direct peer only) and
   JSON-safe details.
+- Audit writes for sensitive create/edit/delete actions are fail-closed: the
+  data change rolls back if the audit row cannot be written. The audit model is
+  append-only in application/admin paths.
 - Logging never includes request bodies, passwords, card data or full codes.
 - `X-Forwarded-For` is deliberately ignored for audit IPs because shared
   hosting may not sanitize it.
@@ -138,8 +159,11 @@ tool, or production access was available.
   origins, and a non-SQLite database.
 - `DEBUG=False`, `SECURE_CONTENT_TYPE_NOSNIFF`, `X_FRAME_OPTIONS=DENY`,
   same-origin referrer/opener policies.
-- HTTPS redirect, secure cookies, HSTS (configurable; default 0 until enabled),
-  and `SECURE_PROXY_SSL_HEADER` for Passenger/LiteSpeed.
+- HTTPS redirect, secure cookies, opt-in HSTS (seconds/include-subdomains/preload
+  parsed with strict boolean handling; default 0 until enabled), and
+  `SECURE_PROXY_SSL_HEADER` for Passenger/LiteSpeed.
+- `env_bool` rejects unrecognized values instead of silently treating them as
+  true or false.
 - Static files use a hashed manifest; WhiteNoise does not serve user uploads.
 - No raw SQL, `extra()`, `RawSQL`, `mark_safe`, `|safe`, `eval`, `exec`,
   `subprocess`, or `csrf_exempt` in application code.
@@ -160,6 +184,17 @@ tool, or production access was available.
 | 10 | Login had no brute-force protection; `next` could be open | Cache lockout + validated redirects | `test_auth.py` |
 | 11 | Money stored as integers/floats without DB constraints | `DecimalField` + check constraints (migration 0013) | migration test, `test_checkout.py` |
 | 12 | Staff could edit their own/admin accounts and privileges | Superuser-only privilege fields; staff-account protection | `test_staff.py` |
+| 13 | Concurrent payment initiation could create multiple live authorities | Transactional `initiating` claim + stale timeout; reuse recent redirect | `test_payments.py`, `test_concurrency.py` |
+| 14 | Inconclusive verification could lose a paid order or release its coupon | Keep `verifying`; cron re-verifies stale attempts exactly once | `test_payments.py` |
+| 15 | Zero-total orders bypassed the paid fulfilment path | Server-side revalidation and shared fulfilment; mismatch cancels | `test_zero_orders.py` |
+| 16 | Used/assigned codes could be overwritten by a concurrent edit/delete | Row-locked immutability and locked bulk delete; export for view/change | `test_permissions_extra.py` |
+| 17 | Sensitive audit insert could fail after data changed | Fail-closed audit inside the same transaction; append-only admin | `test_permissions_extra.py` |
+| 18 | Marking notifications read on GET enabled CSRF/link previews | GET is read-only; POST marks read | `test_hardening.py` |
+| 19 | Revenue used `created_at`/`__date`, silently zero without MySQL tz tables | `paid_at` + explicit local-day UTC boundaries | `test_hardening.py` |
+| 20 | Image validation could be bypassed by `ImageFieldFile` | Unwrap the underlying uploaded file before Pillow checks | `test_hardening.py` |
+| 21 | Truthy env strings/HSTS defaults were unsafe or surprising | Strict `env_bool`; opt-in seconds/include/preload | `test_hardening.py` |
+| 22 | Two order lines for one product could pass stock checks separately | Aggregate required quantity per product/variant | `test_fulfillment.py` |
+| 23 | Staff manual cancel left coupon/payment reserved or raced a capture | Release coupon/payment; refuse while gateway is live/verifying | `test_order_state.py` |
 
 ## 6. Residual risks and recommendations
 
@@ -174,7 +209,7 @@ tool, or production access was available.
 | CSV exports can contain spreadsheet formula prefixes (`=`, `+`, `-`, `@`) | Low | Open exports as text/import rather than double-clicking; or add a documented escaping policy if operators need Excel |
 | `SECURE_PROXY_SSL_HEADER` trusts `X-Forwarded-Proto` | Low | Ensure LiteSpeed/Passenger overwrites the header; do not expose the app directly |
 | HSTS is disabled until the operator enables it | Low | Enable after HTTPS verification; avoid preload until confident |
-| Audit log is not immutable; a superuser can delete entries in Django admin | Medium | Restrict superuser access, ship audit rows to external storage, define retention |
+| Audit log is append-only in the app/admin but a database-level superuser can still delete or alter rows | Medium | Restrict DB/phpMyAdmin access, ship audit rows to external storage, define retention |
 | No global request rate limiting / bot protection | Medium | Add at the proxy/WAF layer; monitor 4xx/5xx and login failures |
 | Dependency pins are versions, not hashes | Low | Use a private index or `--require-hashes` if the host supports it |
 | Signup reveals whether a phone/email is registered | Low | Acceptable for UX; consider generic messaging if enumeration is a concern |
@@ -185,9 +220,12 @@ tool, or production access was available.
 
 - `DJANGO_ENV=test python manage.py check` -> no issues.
 - Production `check --deploy` with a real-length secret, hosts, CSRF origins,
-  MySQL engine and HSTS preload -> no issues.
-- 82 automated tests pass on SQLite and MariaDB 11.4.5, including authorization,
-  CSRF/method, replay, coupon, stock-shortage and export-permission cases.
+  MySQL engine and HSTS seconds/include/preload -> no issues. With the default
+  opt-in HSTS disabled, Django reports expected W004; enabling seconds without
+  include-subdomains/preload adds W005/W021.
+- 155 automated tests pass on SQLite (4 MariaDB-only concurrency tests skipped)
+  and all 155 pass on MariaDB 11.4.5, including authorization, CSRF/method,
+  replay, coupon, stock-shortage, audit-failure and export-permission cases.
 - `pip check` -> no broken requirements.
 - No raw SQL/`safe`/`csrf_exempt` usage found in application code.
 - Browser smoke checks showed no failed network requests on public/staff pages.
@@ -198,7 +236,9 @@ tool, or production access was available.
 - [ ] Set a unique 64+ character `DJANGO_SECRET_KEY`.
 - [ ] Set `DEBUG=false`, real `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`.
 - [ ] Confirm HTTPS, secure cookies, proxy header and callback URL.
-- [ ] Enable HSTS after verification.
+- [ ] Enable HSTS after verification (seconds, include-subdomains, then preload).
+- [ ] Ask the host to load MySQL timezone tables; otherwise expect admin date
+      filters to be empty (revenue reports do not depend on them).
 - [ ] Disable ZarinPal sandbox and use the real merchant ID.
 - [ ] Create least-privilege staff groups; verify code export permission.
 - [ ] Restrict or monitor `/django-admin/`.

@@ -10,6 +10,7 @@ from .common import money_field
 
 class Payment(models.Model):
     STATUS_CREATED = "created"
+    STATUS_INITIATING = "initiating"
     STATUS_REDIRECTED = "redirected"
     STATUS_VERIFYING = "verifying"
     STATUS_PAID = "paid"
@@ -18,6 +19,7 @@ class Payment(models.Model):
 
     STATUS_CHOICES = [
         (STATUS_CREATED, "ایجاد شد"),
+        (STATUS_INITIATING, "در حال ایجاد تراکنش"),
         (STATUS_REDIRECTED, "ارسال به درگاه"),
         (STATUS_VERIFYING, "در حال تأیید"),
         (STATUS_PAID, "پرداخت موفق"),

@@ -19,15 +19,16 @@ names are unchanged.
 | Bestseller flag/priority | staff-controlled ordering | Preserved | model fields and ordering |
 | Session cart | add/update/remove/clear | Preserved and hardened | prices/stock always recomputed; malformed keys ignored |
 | Checkout | contact form, coupon, order creation | Preserved and hardened | row locks, coupon re-validation, server totals |
-| Coupon apply/remove | session coupon | Preserved and hardened | locked reservation, one redemption per user, release on failure |
-| ZarinPal payment | initiation and callback | Preserved and hardened | POST + CSRF, authority/amount checks, idempotent callback |
+| Coupon apply/remove | session coupon | Preserved and hardened | locked reservation, one redemption per user, release on failure/expiry/manual cancel |
+| ZarinPal payment | initiation and callback | Preserved and hardened | POST + CSRF, `initiating` claim, authority/amount checks, `verifying` reconciliation, idempotent callback |
+| Zero-total order | unspecified | Hardened | same paid-order fulfilment path after server-side revalidation; no gateway |
 | Order history/detail | authenticated owner view | Preserved | selectors filter by user |
-| Digital delivery | assign codes to paid orders | Preserved and hardened | row locks, all-or-nothing per line, idempotent retry |
+| Digital delivery | assign codes to paid orders | Preserved and hardened | row locks, all-or-nothing per line, durable retry, delivered codes immutable |
 | Signup/login/logout | mobile-based auth | Preserved and hardened | Iranian mobile normalization, lockout, safe `next`, POST logout |
 | Account page | profile and recent orders | Preserved | `views/account.py` |
 | Wishlist | toggle/list | Preserved | `views/engagement.py` |
 | Reviews | submit/display approved reviews | Preserved | rating constraint 1–5, approval workflow |
-| Notifications | in-app list | Preserved | created on successful payment |
+| Notifications | in-app list | Preserved and hardened | payment/completion notices; GET is read-only, POST marks read |
 | Referral | code/profile/apply | Preserved | unique codes, self-referral rejected |
 | Loyalty | points/ledger | Preserved | awarded once per paid order |
 | Static pages | about/contact/faq/guide/terms/privacy | Preserved | `views/pages.py` |
@@ -43,15 +44,15 @@ names are unchanged.
 | --- | --- | --- | --- |
 | Dashboard | sales/orders/chart/low stock | Preserved | `views/staff.py:dashboard` |
 | Product/category/variant/image/discount CRUD | generic model forms | Preserved and hardened | explicit allow-listed forms |
-| Order management | list and view | Preserved and hardened | only `status` editable; paid status cannot be set manually |
+| Order management | list and view | Preserved and hardened | only `status` editable; paid status cannot be set manually; cancellation releases coupon/payment and is refused during a live gateway attempt |
 | Payments | read-only list | Preserved | no add/change/delete |
-| Coupons | CRUD | Preserved | validated value/date fields |
+| Coupons | CRUD | Preserved and hardened | validated value/date fields; DB constraints and redemption uniqueness |
 | Reviews | approve/edit | Preserved | explicit fields |
 | Users | manage accounts | Preserved and hardened | privilege fields superuser-only; staff cannot edit staff |
 | Groups/permissions | superuser-only | Preserved | custom `GroupStaffForm` |
-| Digital codes | list/import/export | Preserved and hardened | export permission gate, size/row limits, audit |
-| Audit log | not present | Added (security) | `AuditLog`, `/dashboard/audit/` superuser-only |
-| Analytics | revenue snapshot | Preserved | `/admin-tools/analytics/` |
+| Digital codes | list/import/export | Preserved and hardened | export gate for view/change, add for import, row-locked immutability, size/row limits, audit |
+| Audit log | not present | Added (security) | `AuditLog`, `/dashboard/audit/` superuser-only, append-only, fail-closed sensitive writes |
+| Analytics | revenue snapshot | Preserved and hardened | `/admin-tools/analytics/`; revenue uses `paid_at`, local-day UTC bounds |
 | Django admin | `/django-admin/` fallback | Preserved and hardened | code screens require export permission |
 | Staff logout | session logout | Preserved | POST-only |
 
@@ -68,11 +69,15 @@ Staff resource keys kept: `products`, `categories`, `variants`, `images`,
 | Cart ignores tampered prices and clamps to stock | `test_cart.py` |
 | Checkout recomputes totals and locks stock | `test_checkout.py` |
 | Invalid/expired/reused coupon rejects the order | `test_checkout.py` |
-| Coupon is released exactly once on failed payment | `test_payments.py`, `test_checkout.py` |
+| Coupon is released exactly once on failed payment/expiry/manual cancel | `test_payments.py`, `test_coupon_lifecycle.py`, `test_order_state.py` |
 | Callback requires matching authority and amount | `test_payments.py` |
 | Duplicate callback does not double-charge stock/codes | `test_payments.py`, `test_digital.py` |
-| Insufficient stock after payment keeps order processing | `test_payments.py` |
-| Digital delivery is all-or-nothing per line and idempotent | `test_digital.py` |
+| Inconclusive verification is reconciled once | `test_payments.py` |
+| Insufficient stock after payment keeps order processing and cron retries | `test_payments.py`, `test_fulfillment.py` |
+| Zero-total order uses revalidated paid fulfilment | `test_zero_orders.py` |
+| Digital delivery is all-or-nothing per line, idempotent and immutable after delivery | `test_digital.py`, `test_permissions_extra.py` |
+| Manual completion requires consumed stock; paid orders cannot be faked/canceled | `test_order_state.py` |
+| Sensitive audit failure rolls back the data change | `test_permissions_extra.py` |
 | Non-owner cannot view orders/payments | `test_security.py` |
 | Staff code screens/exports require permission | `test_staff.py`, `test_security.py` |
 | Exports/imports write audit rows | `test_staff.py` |
@@ -94,10 +99,13 @@ No public URL, template, or staff workflow was intentionally removed.
 
 ## 5. Added engineering infrastructure
 
-- Automated test suite: 82 tests across cart, checkout, payments, digital
-  delivery, auth, staff permissions, security and page smoke tests.
-- Database check constraints for money, quantities and ratings.
-- `AuditLog` for sensitive actions.
+- Automated test suite: 155 tests across cart, checkout, payments, durable
+  fulfilment, concurrency, migrations, auth, staff permissions, security and
+  page smoke tests.
+- Database check constraints for money, quantities, ratings, coupon values and
+  redemption uniqueness; fulfilment markers for legacy orders.
+- `AuditLog` for sensitive actions, append-only and fail-closed for sensitive
+  writes.
 - Custom error pages (403/404/500).
 - Sitemap and canonical/meta tags.
 - Split settings (`base`/`dev`/`prod`/`test`) with production fail-fast checks.

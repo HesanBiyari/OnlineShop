@@ -46,6 +46,12 @@ class Order(models.Model):
     payment_ref = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+    # Fulfilment is split into durable steps so a cron retry cannot deduct stock
+    # twice. This timestamp is written in the same transaction as the stock
+    # decrement. It is deliberately nullable for legacy rows and pending orders.
+    stock_consumed_at = models.DateTimeField(null=True, blank=True)
+    # Delivery notifications are retried by the cron until this is written.
+    fulfillment_notified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)

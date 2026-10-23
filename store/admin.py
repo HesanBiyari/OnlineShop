@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import csv
+import logging
 
 from django.contrib import admin, messages
+from django.db.models import Q
 from django.http import HttpResponse
 
+from .forms import OrderAdminForm
 from .models import (
     AuditLog,
     Category,
@@ -29,6 +32,8 @@ from .models import (
     Wishlist,
 )
 from .services.audit import log_action
+
+logger = logging.getLogger(__name__)
 
 
 class ProductVariantInline(admin.TabularInline):
@@ -117,7 +122,7 @@ class DigitalCodeAdmin(admin.ModelAdmin):
     list_filter = ("is_used", "product", "variant")
     search_fields = ("code", "product__name", "variant__name")
     list_select_related = ("product", "variant", "order_item")
-    readonly_fields = ("used_at",)
+    readonly_fields = ("is_used", "order_item", "used_at")
     actions = ("export_selected",)
 
     def has_export_permission(self, request) -> bool:
@@ -125,9 +130,8 @@ class DigitalCodeAdmin(admin.ModelAdmin):
             "store.export_digitalcode"
         )
 
-    # Codes and PINs are saleable secrets. Django admin's default
-    # view/change permissions are not enough: only users who may export codes
-    # may open the code screens at all.
+    # Codes and PINs are saleable secrets. Viewing the module at all requires
+    # the export permission; export does *not* grant add/change/delete.
     def has_module_permission(self, request):
         return self.has_export_permission(request)
 
@@ -135,7 +139,15 @@ class DigitalCodeAdmin(admin.ModelAdmin):
         return self.has_export_permission(request)
 
     def has_change_permission(self, request, obj=None):
-        return self.has_export_permission(request)
+        if obj is not None and (obj.is_used or obj.order_item_id):
+            return False
+        return (
+            self.has_export_permission(request)
+            and (
+                request.user.is_superuser
+                or request.user.has_perm("store.change_digitalcode")
+            )
+        )
 
     def has_add_permission(self, request):
         return request.user.is_superuser or request.user.has_perm(
@@ -143,9 +155,27 @@ class DigitalCodeAdmin(admin.ModelAdmin):
         )
 
     def has_delete_permission(self, request, obj=None):
-        return request.user.is_superuser or request.user.has_perm(
-            "store.delete_digitalcode"
+        if obj is not None and (obj.is_used or obj.order_item_id):
+            return False
+        return (
+            self.has_export_permission(request)
+            and (
+                request.user.is_superuser
+                or request.user.has_perm("store.delete_digitalcode")
+            )
         )
+
+    def delete_queryset(self, request, queryset):
+        if queryset.filter(
+            Q(is_used=True) | Q(order_item__isnull=False)
+        ).exists():
+            self.message_user(
+                request,
+                "کدهای تخصیص‌یافته یا استفاده‌شده قابل حذف گروهی نیستند.",
+                level=messages.ERROR,
+            )
+            return
+        super().delete_queryset(request, queryset)
 
     @admin.action(description="خروجی CSV کدهای انتخاب‌شده (محدود و ثبت‌شده)")
     def export_selected(self, request, queryset):
@@ -169,13 +199,22 @@ class DigitalCodeAdmin(admin.ModelAdmin):
                 [item.code, item.pin, item.product_id, item.variant_id or "", int(item.is_used)]
             )
             count += 1
-        log_action(
-            action=AuditLog.ACTION_DIGITAL_EXPORT,
-            actor=request.user,
-            target_type="store.digitalcode",
-            details={"rows": count, "source": "django_admin"},
-            request=request,
-        )
+        try:
+            log_action(
+                action=AuditLog.ACTION_DIGITAL_EXPORT,
+                actor=request.user,
+                target_type="store.digitalcode",
+                details={"rows": count, "source": "django_admin"},
+                request=request,
+            )
+        except Exception:
+            logger.exception("Digital-code export audit failed")
+            self.message_user(
+                request,
+                "ثبت گزارش امنیتی خروجی ممکن نشد؛ خروجی ارسال نشد.",
+                level=messages.ERROR,
+            )
+            return None
         return response
 
 
@@ -196,6 +235,7 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    form = OrderAdminForm
     list_display = (
         "id",
         "user",
@@ -214,6 +254,8 @@ class OrderAdmin(admin.ModelAdmin):
         "payment_ref",
         "created_at",
         "paid_at",
+        "stock_consumed_at",
+        "fulfillment_notified_at",
     )
     list_select_related = ("user",)
     inlines = [OrderItemInline]
@@ -225,6 +267,35 @@ class OrderAdmin(admin.ModelAdmin):
     @admin.display(description="مبلغ")
     def total_amount_display(self, obj):
         return f"{obj.total_amount:,} تومان"
+
+    def has_add_permission(self, request):
+        # Orders come from checkout only; a hand-created order would bypass
+        # server-side pricing, coupon and payment invariants.
+        return False
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        previous = getattr(form, "previous_status", None)
+        if change and previous is not None and previous != obj.status:
+            # The admin change form is wrapped in a transaction; if the audit
+            # insert fails, the status change is rolled back too.
+            log_action(
+                action=AuditLog.ACTION_ORDER_STATUS,
+                actor=request.user,
+                target_type="store.order",
+                target_id=obj.pk,
+                details={
+                    "from": previous,
+                    "to": obj.status,
+                    "source": "django_admin",
+                },
+                request=request,
+            )
+
+    def has_delete_permission(self, request, obj=None):
+        # Orders and their payment references are financial records. They are
+        # cancelled by the explicit cancellation flow, never deleted via admin.
+        return False
 
 
 @admin.register(Payment)
@@ -292,7 +363,8 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return request.user.is_superuser
+        # The audit trail is append-only, including for superusers.
+        return False
 
 
 for _model in (

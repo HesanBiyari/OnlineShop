@@ -31,7 +31,8 @@ passenger_wsgi.py        cPanel/Passenger entry point
 store/
   models/                domain models (catalog, orders, payments, digital,
                          promotions, engagement, audit)
-  services/              business logic and side effects
+  services/              business logic, fulfilment and side effects
+  services/reporting.py  timezone-safe local-day report bounds
   selectors/             read-side query helpers
   forms/                 auth/customer forms and explicit staff forms
   views/                 public, account, payment, staff and page views
@@ -102,9 +103,12 @@ POST /payment/<order_id>/ (owner only, CSRF)
   -> 302 to gateway
 ```
 
-A valid redirected authority is reused for a configurable window
-(`PAYMENT_REDIRECT_REUSE_SECONDS`, default 1800s). Stale `created` attempts are
-re-issued. A paid order is never downgraded.
+The first transaction writes `Payment.status=initiating` and clears any old
+authority before the network call, so concurrent requests cannot create two
+live authorities. A valid redirected authority is reused for a configurable
+window (`PAYMENT_REDIRECT_REUSE_SECONDS`, default 1800s). Stale `initiating`
+claims can be retried after `PAYMENT_INITIATING_STALE_SECONDS` (default 120s). A
+paid order is never downgraded.
 
 ### 4.4 Gateway callback
 
@@ -113,25 +117,33 @@ GET /payment/<order_id>/callback/?Authority=...&Status=...
   -> services.payments.process_callback
      - order must exist
      - already paid -> return "already_paid" (idempotent success)
-     - payment must exist and authority must match
+     - payment must exist, authority and amount must match
      - canceled order -> reject
-     - Status != OK -> mark canceled, release coupon once
+     - Status != OK -> cancel order, mark payment canceled, release coupon
      - lock payment, mark "verifying"
      - network: gateway.verify_payment(amount=order.total_amount, authority)
-     - lock again; if already paid -> success
-     - failure -> mark failed, release coupon
+     - network uncertainty -> keep "verifying" for cron reconciliation
+     - definitive failure -> cancel order, mark payment failed, release coupon
      - success:
+         * record payment paid + order paid with reference (durable)
          * lock stock rows; if insufficient -> order stays "processing"
-         * decrement stock
-         * mark order paid with payment reference
+         * decrement aggregate stock per product/variant
+         * mark stock_consumed_at
          * deliver digital codes (all-or-nothing per line)
-         * award loyalty points / notification once (savepoint)
+         * award loyalty points / payment notification once
          * status completed if all lines delivered, else processing
+         * mark fulfillment_notified_at after completion notice
 ```
 
 Repeated callbacks cannot deduct stock twice or deliver codes twice, because
-the finalization path re-checks `order.is_paid` under a row lock and the
-digital delivery function is already idempotent.
+the finalization path re-checks `order.is_paid` under a row lock, stock/code/
+notification steps use durable order markers, and digital delivery is
+idempotent. A paid order with a missing step stays `processing`; `process_orders`
+retries only that step.
+
+Zero-total orders take the same paid-order path after the server re-checks
+lines, coupon reservation and payment amount. They are marked paid without a
+gateway; a mismatch cancels the order and releases the coupon.
 
 ### 4.5 Digital delivery
 
@@ -142,8 +154,11 @@ digital delivery function is already idempotent.
 3. if enough unused codes exist, assigns exactly the needed quantity;
 4. if not enough exist, assigns none for that line and returns `False`.
 
-`process_orders` can be run repeatedly from cron. It re-attempts delivery for
-`paid`/`processing` orders and moves fully delivered orders to `completed`.
+`process_orders` can be run repeatedly from cron. It reconciles stale
+`verifying` payments, expires abandoned unpaid orders (except live redirected/
+verifying attempts), re-attempts delivery for `paid`/`processing` orders, and
+retries a missing completion notification. Each step is idempotent and
+row-locked.
 
 ## 5. Data model summary
 
@@ -152,8 +167,8 @@ digital delivery function is already idempotent.
 | `Category`, `Product`, `ProductVariant` | catalog | unique category slug, unique SKU, non-negative prices |
 | `ProductImage` | gallery | first image becomes main; one main image enforced in `save()` |
 | `Discount` | per-product percent discount | percent 0–100, start ≤ end |
-| `Order`, `OrderItem` | immutable commercial snapshot | non-negative totals, quantity ≥ 1 |
-| `Payment` | one gateway attempt per order | one-to-one order, unique non-null authority |
+| `Order`, `OrderItem` | immutable commercial snapshot | non-negative totals, quantity ≥ 1, durable `stock_consumed_at`/`fulfillment_notified_at` |
+| `Payment` | one gateway attempt per order | one-to-one order, unique non-null authority, explicit `initiating`/`verifying` states |
 | `DigitalCode` | saleable secret inventory | consistent used/unused state, export permission |
 | `Coupon`, `CouponRedemption` | discounts and one-per-user redemption | unique code, one redemption per order |
 | `Referral`, `LoyaltyAccount`, `LoyaltyTransaction` | growth features | one profile/account per user |
@@ -162,7 +177,8 @@ digital delivery function is already idempotent.
 
 Money fields use `DecimalField(max_digits=14, decimal_places=0)`, representing
 whole Toman. There are no floats in pricing paths. Check constraints are
-declared in the models and created by migration `0013`.
+declared in the models and created by migrations `0013` and `0014`; migration
+`0015` backfills fulfilment markers for legacy paid orders.
 
 ## 6. Configuration
 
@@ -176,7 +192,9 @@ declared in the models and created by migration `0013`.
 `prod.py` fails fast when `DJANGO_SECRET_KEY` is missing or shorter than 50
 characters, when allowed hosts/CSRF origins are empty, or when SQLite is
 selected. `base.py` reads all secrets from the environment; `.env` is a
-developer convenience only and is git-ignored.
+developer convenience only and is git-ignored. Boolean env values are strict:
+`1/true/yes/on` and `0/false/no/off` are accepted, anything else is an error.
+HSTS is opt-in and controlled by seconds/include-subdomains/preload env vars.
 
 Production static files use `CompressedManifestStaticFilesStorage`, served by
 WhiteNoise. User uploads stay on the filesystem under `DJANGO_MEDIA_ROOT` and
@@ -192,22 +210,28 @@ must be served by the web server, never executed.
 - `groups` and `audit` are superuser-only.
 - Sensitive resources (`codes`, `orders`, `payments`, `coupons`, `users`) are
   audited on change; order status transitions and code imports/exports always
-  write an `AuditLog` row.
+  write an `AuditLog` row. Sensitive create/edit/delete fails closed if the
+  audit insert fails.
 - Django admin is a technical fallback at `/django-admin/`; its code screens
-  apply the same export-permission gate.
+  apply the same export-permission gate, orders cannot be added/deleted, and the
+  audit log is append-only.
 
 ## 8. Failure handling
 
 - Gateway creation or verification network errors are logged and surfaced as
   safe Persian messages; `verifying` attempts remain retryable.
-- A payment that succeeds while stock is insufficient is kept as `processing`
-  for manual fulfilment; money is never silently discarded.
+- A payment that succeeds while stock is insufficient is kept as `processing`;
+  `process_orders` retries the stock step. Money is never silently discarded.
 - Loyalty/notification failures are isolated in a savepoint and cannot roll
-  back a confirmed payment.
+  back a confirmed payment; cron retries them idempotently.
 - Digital delivery shortage leaves the order `processing`; `process_orders`
-  retries later.
+  retries later without re-consuming stock.
+- Reporting uses explicit local-day UTC boundaries. This avoids MySQL's
+  `CONVERT_TZ` (`__date`) returning NULL on hosts without timezone tables.
 - Protected foreign keys prevent deleting products/orders that financial rows
   depend on; the staff panel shows a Persian error instead of crashing.
+- Manual cancellation releases a coupon/payment, but is refused while a gateway
+  attempt is live or verifying; paid orders require a refund flow.
 
 ## 9. Deliberate non-goals
 

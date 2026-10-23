@@ -79,19 +79,38 @@ def award_points(
 
 
 def finalize_advanced_order(order: Order) -> bool:
-    """Award loyalty points and notify exactly once per order."""
+    """Award loyalty points and notify exactly once per order.
 
-    if LoyaltyTransaction.objects.filter(order=order, reason="خرید").exists():
-        return False
+    A zero-point order still gets a ledger row. Otherwise every cron run would
+    treat it as unfinalised and send the payment notification again.
+    """
 
-    points = int(Decimal(order.total_amount) // Decimal("10000"))
-    award_points(order.user, points, "خرید", order)
-    notify(
-        order.user,
-        "پرداخت موفق",
-        f"سفارش #{order.id} با موفقیت تأیید شد.",
-    )
-    ensure_referral(order.user)
+    with transaction.atomic():
+        account, _ = LoyaltyAccount.objects.select_for_update().get_or_create(
+            user=order.user
+        )
+        if LoyaltyTransaction.objects.filter(
+            order=order, reason="خرید"
+        ).exists():
+            return False
+
+        points = int(Decimal(order.total_amount) // Decimal("10000"))
+        if points > 0:
+            account.points += points
+            account.lifetime_points += points
+            account.save(update_fields=["points", "lifetime_points", "updated_at"])
+        LoyaltyTransaction.objects.create(
+            account=account,
+            points=points,
+            reason="خرید",
+            order=order,
+        )
+        notify(
+            order.user,
+            "پرداخت موفق",
+            f"سفارش #{order.id} با موفقیت تأیید شد.",
+        )
+        ensure_referral(order.user)
     return True
 
 
@@ -120,7 +139,15 @@ def reserve_coupon(user, code: str, amount: Decimal) -> tuple[Coupon | None, Dec
 
 
 def release_coupon_for_order(order: Order) -> bool:
-    """Release a coupon reservation exactly once after a failed payment."""
+    """Release a coupon reservation exactly once after a failed payment.
+
+    A paid order never gives up its coupon. The order row is expected to be
+    locked by the caller; this function additionally locks the redemption and
+    coupon rows.
+    """
+
+    if order.is_paid:
+        return False
 
     with transaction.atomic():
         redemption = (

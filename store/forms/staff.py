@@ -23,6 +23,7 @@ from store.models import (
     Review,
 )
 from store.services.images import validate_image_upload
+from store.services.orders import cancel_pending_order, validate_staff_transition
 
 User = get_user_model()
 
@@ -106,7 +107,15 @@ class CodeStaffForm(StaffModelForm):
         fields = ("product", "variant", "code", "pin")
 
     def clean_code(self) -> str:
-        return self.cleaned_data["code"].strip()
+        code = (self.cleaned_data.get("code") or "").strip()
+        if not code:
+            raise forms.ValidationError("کد دیجیتال نمی‌تواند خالی باشد.")
+        queryset = DigitalCode.objects.filter(code__iexact=code)
+        if self.instance.pk:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise forms.ValidationError("این کد قبلاً ثبت شده است.")
+        return code
 
     def clean(self):
         data = super().clean()
@@ -117,7 +126,31 @@ class CodeStaffForm(StaffModelForm):
         return data
 
 
-class OrderStaffForm(StaffModelForm):
+class OrderCancelMixin:
+    """Release coupon/payment state when a human cancels a pending order."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.previous_status = (
+            self.instance.status if self.instance.pk else None
+        )
+
+    def save(self, commit=True):
+        was_pending = self.previous_status == Order.STATUS_PENDING
+        instance = super().save(commit=commit)
+        if was_pending and instance.status == Order.STATUS_CANCELED:
+            actor = getattr(self, "actor", None)
+            username = getattr(actor, "username", "staff")
+            cancel_pending_order(
+                instance.pk,
+                reason=f"سفارش به‌صورت دستی توسط {username} لغو شد.",
+            )
+            if commit:
+                instance.refresh_from_db()
+        return instance
+
+
+class OrderStaffForm(OrderCancelMixin, StaffModelForm):
     """Only the fulfilment status is editable; money and ownership are not."""
 
     class Meta:
@@ -126,13 +159,20 @@ class OrderStaffForm(StaffModelForm):
 
     def clean_status(self):
         new_status = self.cleaned_data["status"]
-        old_status = self.instance.status
-        if old_status == Order.STATUS_CANCELED and new_status != old_status:
-            raise forms.ValidationError("سفارش لغو‌شده قابل بازگشایی نیست.")
-        if not self.instance.is_paid and new_status in Order.PAID_STATUSES:
-            raise forms.ValidationError(
-                "تغییر وضعیت به پرداخت‌شده فقط از طریق تأیید درگاه انجام می‌شود."
-            )
+        validate_staff_transition(self.instance, new_status)
+        return new_status
+
+
+class OrderAdminForm(OrderCancelMixin, StaffModelForm):
+    """Same transition rules for the Django admin path."""
+
+    class Meta:
+        model = Order
+        fields = "__all__"
+
+    def clean_status(self):
+        new_status = self.cleaned_data["status"]
+        validate_staff_transition(self.instance, new_status)
         return new_status
 
 

@@ -126,11 +126,17 @@ DJANGO_DB_PORT=3306
 DJANGO_MEDIA_ROOT=/home/CPANEL_USER/giftbaaz/media
 DJANGO_SECURE_SSL_REDIRECT=true
 DJANGO_SECURE_HSTS_SECONDS=0
+DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS=false
+DJANGO_SECURE_HSTS_PRELOAD=false
 DJANGO_TRUST_PROXY_SSL=true
 
 ZARINPAL_MERCHANT_ID=<real merchant id>
 ZARINPAL_SANDBOX=false
 PAYMENT_CURRENCY=IRR
+PAYMENT_REDIRECT_REUSE_SECONDS=1800
+PAYMENT_INITIATING_STALE_SECONDS=120
+PAYMENT_VERIFYING_STALE_SECONDS=300
+ORDER_PENDING_EXPIRY_HOURS=24
 ```
 
 Generate the secret locally:
@@ -143,7 +149,10 @@ python -c "import secrets; print(secrets.token_urlsafe(64))"
 CSRF origins are empty, or SQLite is selected. This is intentional.
 
 Keep HSTS at `0` until HTTPS and the callback URL are confirmed, then raise it
-to `31536000` and restart. Do not enable `preload` casually; removal takes time.
+to `31536000` and restart. Enable include-subdomains only if every subdomain is
+HTTPS; do not enable `preload` casually because removal takes months. Boolean
+values are strict (`true/false`, `1/0`, `yes/no`, `on/off`); unknown values make
+the app fail to start instead of silently choosing a default.
 
 ## 6. Migrate, collect static, verify
 
@@ -226,8 +235,10 @@ application is restarted from the panel.
 
 ## 9. Cron for fulfilment retries
 
-Paid orders whose digital codes were unavailable remain `processing`.
-`process_orders` retries delivery idempotently.
+Paid orders whose stock or digital codes were unavailable remain `processing`.
+`process_orders` also reconciles stale `verifying` payments and cancels
+abandoned unpaid orders whose coupon reservation is still held. It retries each
+missing fulfilment step idempotently.
 
 In **Cron Jobs**, add (every 5 minutes):
 
@@ -236,8 +247,8 @@ In **Cron Jobs**, add (every 5 minutes):
 ```
 
 Create the log directory first. Check the log after the first runs. The command
-is safe to run concurrently in practice because delivery locks code rows, but a
-single scheduled job is enough.
+is idempotent and locks order/payment/code rows; a single scheduled job is
+enough. Alert on non-zero exit or repeated `pending=` counts.
 
 ## 10. Smoke-test checklist
 
@@ -258,9 +269,12 @@ Run after every deployment:
 - [ ] `/django-admin/` loads; code screens are gated.
 - [ ] `/sitemap.xml` and `/robots.txt` render with the production domain.
 - [ ] 404 page renders.
-- [ ] `python manage.py check --deploy` passes.
+- [ ] `python manage.py check --deploy` passes (enable HSTS to clear warnings).
 - [ ] Cron log shows a successful `process_orders` run.
 - [ ] Media image URL loads and cannot execute scripts.
+- [ ] A zero-total coupon order completes without a gateway.
+- [ ] A repeated callback does not create a second stock/code/notification.
+- [ ] Staff cannot manually cancel an order while its gateway attempt is live.
 
 ## 11. Logs and diagnostics
 
@@ -317,6 +331,8 @@ the backup is safer. See `docs/DATABASE_MIGRATION.md`.
 | Login loop | `SESSION_COOKIE_SECURE` without HTTPS, or proxy header missing | fix TLS / `DJANGO_TRUST_PROXY_SSL` |
 | Callback fails | HTTP instead of HTTPS or wrong `SITE_URL` | use the canonical HTTPS domain |
 | Cron does nothing | wrong virtualenv/python path | use the absolute interpreter path |
+| Admin date filters empty; reports fine | MySQL timezone tables not loaded | Ask the host to load them, or rely on the app's revenue reports which use explicit UTC bounds |
+| HSTS deploy warning W004 (or W005/W021) | HSTS is opt-in and still disabled | Enable seconds/include/preload after HTTPS is verified |
 
 ## 15. Security hardening after launch
 
@@ -327,6 +343,7 @@ the backup is safer. See `docs/DATABASE_MIGRATION.md`.
 - Use unique staff accounts and least-privilege groups; `groups`/`audit` are
   superuser-only.
 - Back up the database and media daily; keep at least one off-account copy.
-- Review `store_auditlog` for code exports/imports and order status changes.
+- Review `store_auditlog` for code exports/imports and order status changes. It
+  is append-only in the app/admin, but restrict direct DB/phpMyAdmin access.
 - Monitor `process_orders` failures and `processing` orders.
 - Keep dependencies updated within the pinned Django 5.2 line and re-run tests.
